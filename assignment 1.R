@@ -54,6 +54,14 @@ summary(model_3)
 
 #AFTER I WILL WRITE AN EXPLANTION (, but you should inform what is the model that you are working with and analyze why including House_services to your old model is helpful or not and why. Make a connection to the theory behind OLS - explain in a way that your manager understands)
 
+###The first model was used to see what variables were relevant. 
+###On model 2 we see our model with only the relevant variables (in this model we use the separated variables (light and water) and not the house_services variable)
+###On model 3 we see our model with the house_services variable instead of t he other 2. 
+###We need to remove the other 2 because the variable that we created has a perfect multicollinearity with the initial variables.
+###This means that we cant apply the OLS method because it requires variable independance.
+###We force our linear model to apply the OLS method by setting singular.ok = FALSE and thats why when we try to use all the varibales it gives an error message, so we need to remove the other 2.
+###We can see that the model fits better with the data when we have water and light separated instead of having house_services because our adjusted r2 is higher and our residual standard error is lower.
+
 ###########################################################################################################################
 #1.2
 
