@@ -1,5 +1,8 @@
+
+#creating the house_services column
 Team_2_Brazil_data_census$House_services <- Team_2_Brazil_data_census$AGUA_ESGOTO + Team_2_Brazil_data_census$T_SLUZ
 
+#creating the variables 
 UF <- Team_2_Brazil_data_census$UF
 CODMUN6 <- Team_2_Brazil_data_census$CODMUN6
 NOMEMUN <- Team_2_Brazil_data_census$NOMEMUN
@@ -31,12 +34,18 @@ pesotot <- Team_2_Brazil_data_census$pesotot
 pesourb <- Team_2_Brazil_data_census$pesourb
 House_services <- Team_2_Brazil_data_census$House_services
 
-model <- lm(R1040 ~ AGUA_ESGOTO + CODMUN6 + E_ANOSESTUDO + ESPVIDA + FECTOT + HOMEMTOT + T_MED18M + MORT1 + MULHERTOT + PAREDE + pesoRUR + pesotot + pesourb + PRENTRAB + RAZDEP + RDPC + SOBRE60 + T_ANALF15M + T_ATIV2529 + T_DENS + T_DES2529 + T_M10A14CF + T_NESTUDA_NTRAB_MMEIO + T_OCUPDESLOC_1 + TRABSC + T_SLUZ + UF)
+#this model has every variable with the exeption of NOMEMUN (because it is a character variable) and House_services 
+model <- lm(R1040 ~ AGUA_ESGOTO + CODMUN6 + E_ANOSESTUDO + ESPVIDA + FECTOT + HOMEMTOT + T_MED18M + MORT1 + MULHERTOT + PAREDE + pesoRUR + pesotot + pesourb + PRENTRAB + RAZDEP + RDPC + SOBRE60 + T_ANALF15M + T_ATIV2529 + T_DENS + T_DES2529 + T_M10A14CF + T_NESTUDA_NTRAB_MMEIO + T_OCUPDESLOC_1 + TRABSC + T_SLUZ + UF - 1)
 
-
-model_2 <- lm(R1040 ~ AGUA_ESGOTO + E_ANOSESTUDO + ESPVIDA + FECTOT + HOMEMTOT + MORT1 + MULHERTOT + PAREDE + pesoRUR + RAZDEP + RDPC + T_ATIV2529 + T_DENS + T_DES2529 + T_NESTUDA_NTRAB_MMEIO + T_SLUZ,
+#this model has all the relevant variables minus the ones mentioned above 
+model_2 <- lm(R1040 ~ AGUA_ESGOTO + E_ANOSESTUDO + ESPVIDA + FECTOT + HOMEMTOT + MORT1 + MULHERTOT + PAREDE + pesoRUR + RAZDEP + RDPC + T_ATIV2529 + T_DENS + T_DES2529 + T_NESTUDA_NTRAB_MMEIO + T_SLUZ - 1,
               singular.ok = FALSE)
 
-
-model_3 <- lm(R1040 ~ E_ANOSESTUDO + ESPVIDA + FECTOT + HOMEMTOT + MORT1 + MULHERTOT + PAREDE + pesoRUR + RAZDEP + RDPC + T_ATIV2529 + T_DENS + T_DES2529 + T_NESTUDA_NTRAB_MMEIO + House_services,
+#this model has all the relevant variables - AGUA_ESGOTO and T_SLUZ that were replaced by House_services
+model_3 <- lm(R1040 ~ E_ANOSESTUDO + ESPVIDA + FECTOT + HOMEMTOT + MORT1 + MULHERTOT + PAREDE + pesoRUR + RAZDEP + RDPC + T_ATIV2529 + T_DENS + T_DES2529 + T_NESTUDA_NTRAB_MMEIO + House_services - 1,
               singular.ok = FALSE)
+
+summary(model)
+summary(model_2)
+summary(model_3)
+
