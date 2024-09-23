@@ -73,3 +73,9 @@ cv_model <- cv.glmnet(x, y, alpha = 1)
 best_lambda <- cv_model$lambda.min
 best_lasso_model <- glmnet(x, y, alpha = 1, lambda = best_lambda)
 print(coef(best_lasso_model))
+
+#Question 2.1
+set.seed(123)
+train_indices <- sample(1:nrow(Team2), 3150)
+train_set <- Team2[train_indices, ]
+test_set <- Team2[-train_indices, ]
