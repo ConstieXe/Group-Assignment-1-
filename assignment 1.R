@@ -56,23 +56,22 @@ summary(model_3)
 
 ###########################################################################################################################
 #1.2
+
 install.packages("glmnet")
 library(glmnet)
 
-x <- model.matrix(R1040 ~ ESPVIDA + FECTOT + MORT1 + 
-                     RAZDEP + E_ANOSESTUDO + PRENTRAB + 
-                     RDPC + T_ATIV2529 + T_DES2529 + T_DENS + 
-                     PAREDE + T_NESTUDA_NTRAB_MMEIO + 
-                     HOMEMTOT + MULHERTOT + pesoRUR + House_services, 
-                   data = Team2)[,-1]
 
-y <- Team2$R1040
+y <- R1040
+x <- model.matrix(R1040 ~ E_ANOSESTUDO + ESPVIDA + FECTOT + HOMEMTOT + 
+                    MORT1 + MULHERTOT + PAREDE + pesoRUR + RAZDEP + RDPC + 
+                    T_ATIV2529 + T_DENS + T_DES2529 + T_NESTUDA_NTRAB_MMEIO + 
+                    House_services)[,-1]
 
 lasso_model <- glmnet(x, y, alpha = 1)
-cv_model <- cv.glmnet(x, y, alpha = 1)
-best_lambda <- cv_model$lambda.min
-best_lasso_model <- glmnet(x, y, alpha = 1, lambda = best_lambda)
-print(coef(best_lasso_model))
+coef(lasso_model)
+
+###########################################################################################################################
+
 
 #Question 2.1
 set.seed(123)
