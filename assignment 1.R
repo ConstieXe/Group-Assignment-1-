@@ -1,4 +1,7 @@
+#Do not forget to download (Team_2_Brazil_data_census)
 
+#Question 1
+#1.1
 #creating the house_services column
 Team_2_Brazil_data_census$House_services <- Team_2_Brazil_data_census$AGUA_ESGOTO + Team_2_Brazil_data_census$T_SLUZ
 
@@ -49,7 +52,9 @@ summary(model)
 summary(model_2)
 summary(model_3)
 
-###########################################################################################################################
+#AFTER I WILL WRITE AN EXPLANTION (, but you should inform what is the model that you are working with and analyze why including House_services to your old model is helpful or not and why. Make a connection to the theory behind OLS - explain in a way that your manager understands)
 
+###########################################################################################################################
+#1.2
 install.packages("glmnet")
 library(glmnet)
