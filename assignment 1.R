@@ -49,3 +49,7 @@ summary(model)
 summary(model_2)
 summary(model_3)
 
+###########################################################################################################################
+
+install.packages("glmnet")
+library(glmnet)
