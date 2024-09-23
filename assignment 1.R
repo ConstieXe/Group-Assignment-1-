@@ -78,6 +78,9 @@ x <- model.matrix(R1040 ~ E_ANOSESTUDO + ESPVIDA + FECTOT + HOMEMTOT +
 lasso_model <- glmnet(x, y, alpha = 1)
 coef(lasso_model)
 
+###The model works and i think that we basiccaly say that the coef are closer to 0 in comparison to the first model.
+###Not sure i guees we need to see the lecture slides 
+
 ###########################################################################################################################
 
 
