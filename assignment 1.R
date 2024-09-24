@@ -86,6 +86,6 @@ coef(lasso_model)
 
 #Question 2.1
 set.seed(123)
-train_indices <- sample(1:nrow(Team2), 3150)
-train_set <- Team2[train_indices, ]
-test_set <- Team2[-train_indices, ]
+train_indices <- sample(1:nrow(Team_2_Brazil_data_census), 3150)
+train_set <- Team_2_Brazil_data_census[train_indices, ]
+test_set <- Team_2_Brazil_data_census[-train_indices, ]
