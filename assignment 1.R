@@ -115,5 +115,25 @@ lasso_bestlambda <- glmnet(X2, y2,
 
 round(lasso_bestlambda$beta, 2)
 
-#ELASTIC_NET
+#ELASTIC_NET with chatgpt
 
+# Set up a sequence of alpha values to test
+alpha_seq <- seq(0, 1, by = 0.1)
+results <- data.frame(alpha = numeric(), lambda = numeric(), mse = numeric())
+
+# Loop through the alpha values to perform cross-validation
+for (a in alpha_seq) {
+  enet_model <- cv.glmnet(x, y, alpha = a)  # Cross-validation for Elastic Net
+  best_lambda <- enet_model$lambda.min  # Get the best lambda for this alpha
+  mse <- min(enet_model$cvm)  # Minimum MSE for the best lambda
+  results <- rbind(results, data.frame(alpha = a, lambda = best_lambda, mse = mse))
+}
+
+# Find the best alpha and corresponding lambda
+best_row <- results[which.min(results$mse), ]
+best_alpha_enet <- best_row$alpha
+best_lambda_enet <- best_row$lambda
+
+# Print the best parameters
+cat("Best Elastic Net Lambda:", best_lambda_enet, "\n")
+cat("Best Elastic Net Alpha:", best_alpha_enet, "\n")
