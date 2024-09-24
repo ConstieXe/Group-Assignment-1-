@@ -69,13 +69,13 @@ library(glmnet)
 
 
 y <- R1040
-x <- model.matrix(R1040 ~ E_ANOSESTUDO + ESPVIDA + FECTOT + HOMEMTOT + 
+X <- model.matrix(R1040 ~ E_ANOSESTUDO + ESPVIDA + FECTOT + HOMEMTOT + 
                     MORT1 + MULHERTOT + PAREDE + pesoRUR + RAZDEP + RDPC + 
                     T_ATIV2529 + T_DENS + T_DES2529 + T_NESTUDA_NTRAB_MMEIO + 
                     House_services + AGUA_ESGOTO + T_SLUZ,
                   data = Team_2_Brazil_data_census)[,-1]
 
-lasso_model <- glmnet(x, y, alpha = 1)
+lasso_model <- glmnet(X, y, alpha = 1)
 coef(lasso_model)
 
 ###The model works and i think that we basically say that the coef are closer to 0 in comparison to the first model.
@@ -91,7 +91,9 @@ test_set <- Team_2_Brazil_data_census[-train_indices, ]
 
 #Question 2.2
 
-x2 <- model.matrix(R1040 ~ E_ANOSESTUDO + ESPVIDA + FECTOT + HOMEMTOT + 
+#LASSO
+
+X2 <- model.matrix(R1040 ~ E_ANOSESTUDO + ESPVIDA + FECTOT + HOMEMTOT + 
                     MORT1 + MULHERTOT + PAREDE + pesoRUR + RAZDEP + RDPC + 
                     T_ATIV2529 + T_DENS + T_DES2529 + T_NESTUDA_NTRAB_MMEIO + 
                     House_services + AGUA_ESGOTO + T_SLUZ,
@@ -99,6 +101,19 @@ x2 <- model.matrix(R1040 ~ E_ANOSESTUDO + ESPVIDA + FECTOT + HOMEMTOT +
 
 y2 <- train_set$R1040
 
-cv_lasso <- cv.glmnet(x2, y2, alpha = 1)
+cv_lasso <- cv.glmnet(X2, y2,
+                      alpha = 1)
 
-lasso_pred <- predict(cv_lasso, s = cv_lasso$lambda.min, newx = x2)
+print(cv_lasso$lambda.min) #best cross validated lambda
+
+print(cv_lasso$lambda.1se) #conservative estimate of best lambda 
+
+
+lasso_bestlambda <- glmnet(X2, y2,
+                           alpha = 1,
+                           lambda = cv_lasso$lambda.min)
+
+round(lasso_bestlambda$beta, 2)
+
+#ELASTIC_NET
+
