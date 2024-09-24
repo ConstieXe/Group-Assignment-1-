@@ -1,4 +1,3 @@
-#Do not forget to download (Team_2_Brazil_data_census)
 
 #Question 1
 #1.1
@@ -38,7 +37,7 @@ pesourb <- Team_2_Brazil_data_census$pesourb
 House_services <- Team_2_Brazil_data_census$House_services
 
 #this model has every variable with the exeption of NOMEMUN (because it is a character variable) and House_services 
-model <- lm(R1040 ~ AGUA_ESGOTO + CODMUN6 + E_ANOSESTUDO + ESPVIDA + FECTOT + HOMEMTOT + T_MED18M + MORT1 + MULHERTOT + PAREDE + pesoRUR + pesotot + pesourb + PRENTRAB + RAZDEP + RDPC + SOBRE60 + T_ANALF15M + T_ATIV2529 + T_DENS + T_DES2529 + T_M10A14CF + T_NESTUDA_NTRAB_MMEIO + T_OCUPDESLOC_1 + TRABSC + T_SLUZ + UF - 1)
+model_1 <- lm(R1040 ~ AGUA_ESGOTO + CODMUN6 + E_ANOSESTUDO + ESPVIDA + FECTOT + HOMEMTOT + T_MED18M + MORT1 + MULHERTOT + PAREDE + pesoRUR + pesotot + pesourb + PRENTRAB + RAZDEP + RDPC + SOBRE60 + T_ANALF15M + T_ATIV2529 + T_DENS + T_DES2529 + T_M10A14CF + T_NESTUDA_NTRAB_MMEIO + T_OCUPDESLOC_1 + TRABSC + T_SLUZ + UF - 1)
 
 #this model has all the relevant variables minus the ones mentioned above 
 model_2 <- lm(R1040 ~ AGUA_ESGOTO + E_ANOSESTUDO + ESPVIDA + FECTOT + HOMEMTOT + MORT1 + MULHERTOT + PAREDE + pesoRUR + RAZDEP + RDPC + T_ATIV2529 + T_DENS + T_DES2529 + T_NESTUDA_NTRAB_MMEIO + T_SLUZ - 1,
@@ -48,7 +47,7 @@ model_2 <- lm(R1040 ~ AGUA_ESGOTO + E_ANOSESTUDO + ESPVIDA + FECTOT + HOMEMTOT +
 model_3 <- lm(R1040 ~ E_ANOSESTUDO + ESPVIDA + FECTOT + HOMEMTOT + MORT1 + MULHERTOT + PAREDE + pesoRUR + RAZDEP + RDPC + T_ATIV2529 + T_DENS + T_DES2529 + T_NESTUDA_NTRAB_MMEIO + House_services - 1,
               singular.ok = FALSE)
 
-summary(model)
+summary(model_1)
 summary(model_2)
 summary(model_3)
 
@@ -73,68 +72,33 @@ y <- R1040
 x <- model.matrix(R1040 ~ E_ANOSESTUDO + ESPVIDA + FECTOT + HOMEMTOT + 
                     MORT1 + MULHERTOT + PAREDE + pesoRUR + RAZDEP + RDPC + 
                     T_ATIV2529 + T_DENS + T_DES2529 + T_NESTUDA_NTRAB_MMEIO + 
-                    House_services)[,-1]
+                    House_services + AGUA_ESGOTO + T_SLUZ,
+                  data = Team_2_Brazil_data_census)[,-1]
 
 lasso_model <- glmnet(x, y, alpha = 1)
 coef(lasso_model)
 
-###The model works and i think that we basiccaly say that the coef are closer to 0 in comparison to the first model.
-###Not sure i guees we need to see the lecture slides 
+###The model works and i think that we basically say that the coef are closer to 0 in comparison to the first model.
+###Not sure i gees we need to see the lecture slides 
 
 ###########################################################################################################################
-
-
 #Question 2.1
+
 set.seed(123)
 train_indices <- sample(1:nrow(Team_2_Brazil_data_census), 3150)
 train_set <- Team_2_Brazil_data_census[train_indices, ]
 test_set <- Team_2_Brazil_data_census[-train_indices, ]
 
+#Question 2.2
 
+x2 <- model.matrix(R1040 ~ E_ANOSESTUDO + ESPVIDA + FECTOT + HOMEMTOT + 
+                    MORT1 + MULHERTOT + PAREDE + pesoRUR + RAZDEP + RDPC + 
+                    T_ATIV2529 + T_DENS + T_DES2529 + T_NESTUDA_NTRAB_MMEIO + 
+                    House_services + AGUA_ESGOTO + T_SLUZ,
+                   data = train_set)[,-1]
 
+y2 <- train_set$R1040
 
-######QUESTION 2.1&2.2 COMBINED with lots of chat gpt help. 
-# Load necessary library
-library(glmnet)
+cv_lasso <- cv.glmnet(x2, y2, alpha = 1)
 
-# Step 1: Split the data into training and test sets
-set.seed(123)
-train_indices <- sample(1:nrow(Team_2_Brazil_data_census), 3150)
-train_set <- Team_2_Brazil_data_census[train_indices, ]
-test_set <- Team_2_Brazil_data_census[-train_indices, ]
-
-# Step 2: Create x_train, x_test matrices and y_train, y_test vectors
-x_train <- model.matrix(R1040 ~ E_ANOSESTUDO + ESPVIDA + FECTOT + HOMEMTOT + 
-                          MORT1 + MULHERTOT + PAREDE + pesoRUR + RAZDEP + RDPC + 
-                          T_ATIV2529 + T_DENS + T_DES2529 + T_NESTUDA_NTRAB_MMEIO + 
-                          House_services, data = train_set)[,-1]
-
-x_test <- model.matrix(R1040 ~ E_ANOSESTUDO + ESPVIDA + FECTOT + HOMEMTOT + 
-                         MORT1 + MULHERTOT + PAREDE + pesoRUR + RAZDEP + RDPC + 
-                         T_ATIV2529 + T_DENS + T_DES2529 + T_NESTUDA_NTRAB_MMEIO + 
-                         House_services, data = test_set)[,-1]
-
-y_train <- train_set$R1040
-y_test <- test_set$R1040
-
-# Step 3: Ridge Regression (alpha = 0) with cross-validation
-ridge_model <- cv.glmnet(x_train, y_train, alpha = 0)
-ridge_pred <- predict(ridge_model, s = ridge_model$lambda.min, newx = x_test)
-
-# Step 4: LASSO Regression (alpha = 1) with cross-validation
-lasso_model <- cv.glmnet(x_train, y_train, alpha = 1)
-lasso_pred <- predict(lasso_model, s = lasso_model$lambda.min, newx = x_test)
-
-# Step 5: Elastic Net Regression (alpha = 0.5) with cross-validation
-elastic_net_model <- cv.glmnet(x_train, y_train, alpha = 0.5)
-enet_pred <- predict(elastic_net_model, s = elastic_net_model$lambda.min, newx = x_test)
-
-# Step 6: Compare performance (Mean Squared Error)
-ridge_mse <- mean((ridge_pred - y_test)^2)
-lasso_mse <- mean((lasso_pred - y_test)^2)
-enet_mse <- mean((enet_pred - y_test)^2)
-
-# Print results
-cat("Ridge MSE:", ridge_mse, "\n")
-cat("LASSO MSE:", lasso_mse, "\n")
-cat("Elastic Net MSE:", enet_mse, "\n")
+lasso_pred <- predict(cv_lasso, s = cv_lasso$lambda.min, newx = x2)
