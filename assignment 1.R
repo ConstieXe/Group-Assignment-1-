@@ -89,3 +89,52 @@ set.seed(123)
 train_indices <- sample(1:nrow(Team_2_Brazil_data_census), 3150)
 train_set <- Team_2_Brazil_data_census[train_indices, ]
 test_set <- Team_2_Brazil_data_census[-train_indices, ]
+
+
+
+
+######QUESTION 2.1&2.2 COMBINED with lots of chat gpt help. 
+# Load necessary library
+library(glmnet)
+
+# Step 1: Split the data into training and test sets
+set.seed(123)
+train_indices <- sample(1:nrow(Team_2_Brazil_data_census), 3150)
+train_set <- Team_2_Brazil_data_census[train_indices, ]
+test_set <- Team_2_Brazil_data_census[-train_indices, ]
+
+# Step 2: Create x_train, x_test matrices and y_train, y_test vectors
+x_train <- model.matrix(R1040 ~ E_ANOSESTUDO + ESPVIDA + FECTOT + HOMEMTOT + 
+                          MORT1 + MULHERTOT + PAREDE + pesoRUR + RAZDEP + RDPC + 
+                          T_ATIV2529 + T_DENS + T_DES2529 + T_NESTUDA_NTRAB_MMEIO + 
+                          House_services, data = train_set)[,-1]
+
+x_test <- model.matrix(R1040 ~ E_ANOSESTUDO + ESPVIDA + FECTOT + HOMEMTOT + 
+                         MORT1 + MULHERTOT + PAREDE + pesoRUR + RAZDEP + RDPC + 
+                         T_ATIV2529 + T_DENS + T_DES2529 + T_NESTUDA_NTRAB_MMEIO + 
+                         House_services, data = test_set)[,-1]
+
+y_train <- train_set$R1040
+y_test <- test_set$R1040
+
+# Step 3: Ridge Regression (alpha = 0) with cross-validation
+ridge_model <- cv.glmnet(x_train, y_train, alpha = 0)
+ridge_pred <- predict(ridge_model, s = ridge_model$lambda.min, newx = x_test)
+
+# Step 4: LASSO Regression (alpha = 1) with cross-validation
+lasso_model <- cv.glmnet(x_train, y_train, alpha = 1)
+lasso_pred <- predict(lasso_model, s = lasso_model$lambda.min, newx = x_test)
+
+# Step 5: Elastic Net Regression (alpha = 0.5) with cross-validation
+elastic_net_model <- cv.glmnet(x_train, y_train, alpha = 0.5)
+enet_pred <- predict(elastic_net_model, s = elastic_net_model$lambda.min, newx = x_test)
+
+# Step 6: Compare performance (Mean Squared Error)
+ridge_mse <- mean((ridge_pred - y_test)^2)
+lasso_mse <- mean((lasso_pred - y_test)^2)
+enet_mse <- mean((enet_pred - y_test)^2)
+
+# Print results
+cat("Ridge MSE:", ridge_mse, "\n")
+cat("LASSO MSE:", lasso_mse, "\n")
+cat("Elastic Net MSE:", enet_mse, "\n")
