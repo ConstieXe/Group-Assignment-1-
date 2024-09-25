@@ -137,3 +137,110 @@ best_lambda_enet <- best_row$lambda
 # Print the best parameters
 cat("Best Elastic Net Lambda:", best_lambda_enet, "\n")
 cat("Best Elastic Net Alpha:", best_alpha_enet, "\n")
+
+
+
+
+
+
+
+
+###CODES ACCORDING TO THE VIDEO
+#Adding House Services
+House_services <- Team2$AGUA_ESGOTO + Team2$T_SLUZ
+Team2$House_services <- House_services
+
+#Install Packages 
+install.packages("glmnet")
+library(glmnet)
+install.packages("caret")
+library(caret)
+install.packages("caretEnsemble")
+library(caretEnsemble)
+install.packages("elasticnet")
+library(elasticnet)
+install.packages("psych")
+library(psych)
+
+#Creating Training & Test
+set.seed(123)
+train_indices <- sample(1:nrow(Team2), 3150)
+train_set <- Team2[train_indices, ]
+test_set <- Team2[-train_indices, ]
+
+x <- model.matrix(R1040 ~ UF + CODMUN6 + ESPVIDA + FECTOT + MORT1 + 
+                     RAZDEP + SOBRE60 + E_ANOSESTUDO + T_ANALF15M + T_MED18M + 
+                     PRENTRAB + RDPC + T_ATIV2529 + T_DES2529 + TRABSC + T_DENS + 
+                     AGUA_ESGOTO + PAREDE + T_M10A14CF + T_NESTUDA_NTRAB_MMEIO + 
+                     T_OCUPDESLOC_1 + T_SLUZ + HOMEMTOT + MULHERTOT + 
+                     pesoRUR + pesotot + pesourb + House_services,
+                   data = train_set)[,-1]
+
+y <- train_set$R1040
+
+#Cross Validation 
+fitControl <- trainControl(method = "repeatedcv", number = 10, repeats = 5, verboseIter = TRUE)
+
+#Lasso 
+set.seed(123)
+#alpha is 1, Elastic net reduces to Lasso
+#use glmnet package
+cvfit <- cv.glmnet(x=as.matrix(x), y, type.measure = "mse", nfolds = 10,)
+print(cvfit)
+
+#use caret package
+lasso <- train(R1040 ~ UF + CODMUN6 + ESPVIDA + FECTOT + MORT1 + 
+                 RAZDEP + SOBRE60 + E_ANOSESTUDO + T_ANALF15M + T_MED18M + 
+                 PRENTRAB + RDPC + T_ATIV2529 + T_DES2529 + TRABSC + T_DENS + 
+                 AGUA_ESGOTO + PAREDE + T_M10A14CF + T_NESTUDA_NTRAB_MMEIO + 
+                 T_OCUPDESLOC_1 + T_SLUZ + HOMEMTOT + MULHERTOT + 
+                 pesoRUR + pesotot + pesourb + House_services,
+               train_set,
+               method = 'glmnet',
+               tuneGrid = expand.grid(alpha = 1,
+                                      lambda = seq(0.0001, 1, length =100)),
+               trControl = fitControl
+)
+
+plot(lasso)
+lasso
+plot(lasso$finalModel, xvar = "lambda", label = TRUE)
+plot(lasso$finalModel, xvar = "dev", label = TRUE)
+plot(varImp(lasso, scale = TRUE))
+
+### Optimal lambda for lasso is 0.0304. 
+
+#Elastic Net 
+set.seed(123)
+
+elasticNet <- train(R1040 ~ UF + CODMUN6 + ESPVIDA + FECTOT + MORT1 + 
+                      RAZDEP + SOBRE60 + E_ANOSESTUDO + T_ANALF15M + T_MED18M + 
+                      PRENTRAB + RDPC + T_ATIV2529 + T_DES2529 + TRABSC + T_DENS + 
+                      AGUA_ESGOTO + PAREDE + T_M10A14CF + T_NESTUDA_NTRAB_MMEIO + 
+                      T_OCUPDESLOC_1 + T_SLUZ + HOMEMTOT + MULHERTOT + 
+                      pesoRUR + pesotot + pesourb + House_services,
+                    train_set,
+                    method = 'glmnet',
+                    tuneGrid = expand.grid(alpha = seq(0.0001, 1, length =10),
+                                           lambda = seq(0.0001, 1, length =10)),
+                    trControl = fitControl
+)
+
+plot(elasticNet)
+elasticNet
+plot(elasticNet$finalModel, xvar = "lambda", label = TRUE)
+plot(elasticNet$finalModel, xvar = "dev", label = TRUE)
+plot(varImp(elasticNet, scale = FALSE))
+
+# Optimal alpha = 0.3334 and lambda = 0.1112
+
+#Comparing Models
+listOfModels <- list(Lasso = lasso, ElasticNet = elasticNet)
+res <- resamples(listOfModels)
+summary(res) 
+xyplot(res, metric = 'RMSE')
+
+#best model
+elasticNet$bestTune
+best <- elasticNet$finalModel
+
