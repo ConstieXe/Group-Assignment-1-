@@ -120,30 +120,30 @@ test_data <- brazil_census_df[-train_indices, ]
 
 
 
-x = model.matrix(~ ESPVIDA + FECTOT + MORT1 + RAZDEP + SOBRE60 + E_ANOSESTUDO + T_ANALF15M + T_MED18M 
+x_train = model.matrix(~ ESPVIDA + FECTOT + MORT1 + RAZDEP + SOBRE60 + E_ANOSESTUDO + T_ANALF15M + T_MED18M 
                  + PRENTRAB + RDPC + T_ATIV2529 + T_DES2529 + TRABSC + T_DENS + AGUA_ESGOTO + PAREDE 
                  + T_M10A14CF + T_NESTUDA_NTRAB_MMEIO + T_OCUPDESLOC_1 + T_SLUZ + HOMEMTOT + MULHERTOT
                  + pesoRUR + pesotot + pesourb + House_services,
                  data = train_data)
 
-x <- x[,-1] #remove intercept
+x_train <- x_train[,-1] #remove intercept
 
-y = train_data$R1040
+y_train = train_data$R1040
 
 
 #########LASSO
 set.seed(123)
-cvfit_lasso <- cv.glmnet(x = x, y = y,
+cvfit_lasso <- cv.glmnet(x = x_train, y = y_train,
                          alpha = 1)
 
 plot(cvfit_lasso)
 print(cvfit_lasso)
-best_lambda_lasso = cvfit_lasso$lambda.min
+lambdamin_lasso = cvfit_lasso$lambda.min
 best_mse_lasso = min(cvfit_lasso$cvm)
 
-lasso_model <- glmnet(x = x, y = y,
+lasso_model <- glmnet(x = x_train, y = y_train,
                       alpha = 1,
-                      lambda = best_lambda_lasso)
+                      lambda = lambdamin_lasso)
 
 lasso_model_coef <- coef(lasso_model)
 lasso_model_coef
@@ -155,24 +155,23 @@ set.seed(123)
 alpha_values <- seq(0, 1, by = 0.1)
 
 best_alpha_net <- NA
-best_lambda_net <- NA
+lambdamin_net <- NA
 best_mse_net <- Inf
 
-for (alpha_val in alpha_values) {cvfit_net <- cv.glmnet(x = x, y = y, alpha = alpha_val, nfolds = 10)
+for (alpha_val in alpha_values) {cvfit_net <- cv.glmnet(x = x_train, y = y_train, alpha = alpha_val, nfolds = 10)
 
 if (min(cvfit_net$cvm) < best_mse_net) {
   best_mse_net <- min(cvfit_net$cvm)
   best_alpha_net <- alpha_val
-  best_lambda_net <- cvfit_net$lambda.min}}
+  lambdamin_net <- cvfit_net$lambda.min}}
 
-cat("Best alpha:", best_alpha_net, "\n")
-cat("Best lambda:", best_lambda_net, "\n")
 
-elasticnet_model <- glmnet(x = x, y = y, alpha = best_alpha_net, lambda = best_lambda_net)
+elasticnet_model <- glmnet(x = x_train, y = y_train, alpha = best_alpha_net, lambda = lambdamin_net)
 
 elastic_net_model_coef <- coef(elasticnet_model)
 elastic_net_model_coef
-
+##########################################################################################################################
+#2.3
 
 models_coef <- cbind(lasso_model_coef, elastic_net_model_coef)
 colnames(models_coef) <- c("Lasso Coef","Elastic Net Coef")
@@ -184,3 +183,13 @@ mse_comparison <- cbind(best_mse_lasso, best_mse_net)
 colnames(mse_comparison) <- c("Lasso", "Elastic Net")
 rownames(mse_comparison) <- "Best MSE"
 print(mse_comparison)#This is the matrix comparing the best MSE 
+#############################################################################################################################3
+#2.4
+#Lasso Coef path
+lasso_coef_path <- glmnet(x_train, y_train, alpha = 1)
+plot(lasso_coef_path, xvar = "lambda", label = TRUE)
+
+#Elastic Net Coef path
+elasticnet_coef_path <- glmnet(x_train, y_train, alpha = 0.7)
+plot(elasticnet_coef_path , xvar = "lambda", label = TRUE)
+
