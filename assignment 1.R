@@ -197,3 +197,34 @@ lasso <- glmnet(x = x, y = y, alpha = 1, lambda = cvfit$lambda.min)
 coef(lasso)
 lasso
 
+
+
+##ELASTIC NET WITH GLMNET
+set.seed(123)
+alpha_values <- seq(0, 1, by = 0.1)
+
+best_alpha <- NA
+best_lambda <- NA
+best_mse <- Inf
+
+for (alpha_val in alpha_values) {cvfit <- cv.glmnet(x = as.matrix(x), y = y, alpha = alpha_val, nfolds = 10)
+  
+  if (min(cvfit$cvm) < best_mse) {
+    best_mse <- min(cvfit$cvm)
+    best_alpha <- alpha_val
+    best_lambda <- cvfit$lambda.min}}
+
+cat("Best alpha:", best_alpha, "\n")
+cat("Best lambda:", best_lambda, "\n")
+
+final_model <- glmnet(x = as.matrix(x), y = y, alpha = best_alpha, lambda = best_lambda)
+print(coef(final_model))
+
+# LASSO 
+set.seed(123)
+cvfit_lasso <- cv.glmnet(x = as.matrix(x), y = y, alpha = 1, nfolds = 10)
+
+#COMPARING MSE
+best_mse_lasso <- min(cvfit_lasso$cvm)
+cat("Best MSE for LASSO:", best_mse_lasso, "\n")
+cat("Best MSE for Elastic Net:", best_mse, "\n")
