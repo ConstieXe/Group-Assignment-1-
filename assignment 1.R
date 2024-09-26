@@ -179,3 +179,21 @@ xyplot(res, metric = 'RMSE')
 elasticNet$bestTune
 best <- elasticNet$finalModel
 
+
+
+
+
+
+
+
+
+
+
+#LASSO WITH GLMNET
+set.seed(123)
+cvfit <- cv.glmnet(x=as.matrix(x), y, alpha = 1, type.measure = "mse", nfolds = 10,)
+print(cvfit)
+lasso <- glmnet(x = x, y = y, alpha = 1, lambda = cvfit$lambda.min)
+coef(lasso)
+lasso
+
