@@ -1,237 +1,172 @@
+path = dirname(rstudioapi::getSourceEditorContext()$path)
+setwd(path)
 
-#Question 1
+library(readr)
+library(glmnet)
+library(caret)
+library(caretEnsemble)
+library(elasticnet)
+library(psych)
+library(tibble)
+library(tidyverse)
+library(dplyr)
+library(kableExtra)
+
+brazil_census_df <- read.csv2("Team_2_Brazil_data_census.csv",
+                                       sep = ",", dec = ".", header = TRUE)
+
+
+brazil_census_df <- brazil_census_df[,-1] #This removes that useless column 
+
+
+#creating vectors for state information
+
+df_regions <- tibble(
+  UF = c(12, 16, 13, 15, 11, 14, 17, 27, 29, 23, 21, 25, 22, 26, 24, 28, 53, 52, 51, 50, 32, 31, 33, 35, 41, 42, 43),
+  state_letters = c("AC", "AP", "AM", "PA", "RO", "RR", "TO", "AL", "BA", "CE", "MA", "PB", "PI", "PE", "RN", "SE", "DF", "GO", "MT", "MS", "ES", "MG", "RJ", "SP", "PR", "SC", "RS"),
+  state_names = c("Acre", "Amapá", "Amazonas", "Pará", "Rondônia", "Roraima", "Tocantins", "Alagoas", "Bahia", "Ceará", "Maranhão", "Paraíba", "Piauí", "Pernambuco", "Rio Grande do Norte", "Sergipe", "Distrito Federal", "Goiás", "Mato Grosso", "Mato Grosso do Sul", "Espírito Santo", "Minas Gerais", "Rio de Janeiro", "São Paulo", "Paraná", "Santa Catarina", "Rio Grande do Sul"),
+  region_letters = c(rep("NO", 7), rep("NE", 9), rep("CW", 4), rep("SE", 4), rep("SO", 3)),
+  region_names = c(rep("North", 7), rep("Northeast", 9), rep("Central West", 4), rep("Southeast", 4), rep("South", 3)))
+
+df_regions
+
+#Merging the df
+brazil_census_df <- merge(brazil_census_df, df_regions, by = "UF")
+
+#Changing them to factors
+brazil_census_df <- brazil_census_df %>%
+  mutate(state_letters = as.factor(state_letters),
+         state_names = as.factor(state_names),
+         region_letters = as.factor(region_letters),
+         region_names = as.factor(region_names),
+         UF = as.factor(UF),
+         CODMUN6 = as.factor(CODMUN6),
+         NOMEMUN = as.factor(NOMEMUN))
+
+#Check for missing elements
+sum(is.na(brazil_census_df))
+
+#Check the variables
+str(brazil_census_df)
+summary(brazil_census_df)
+
+
+# Create the House_services variable
+brazil_census_df$House_services <- brazil_census_df$AGUA_ESGOTO + brazil_census_df$T_SLUZ
+
+####################################################################################################################################
+
 #1.1
-#creating the house_services column
-Team_2_Brazil_data_census$House_services <- Team_2_Brazil_data_census$AGUA_ESGOTO + Team_2_Brazil_data_census$T_SLUZ
 
-#creating the variables 
-UF <- Team_2_Brazil_data_census$UF
-CODMUN6 <- Team_2_Brazil_data_census$CODMUN6
-NOMEMUN <- Team_2_Brazil_data_census$NOMEMUN
-ESPVIDA <- Team_2_Brazil_data_census$ESPVIDA
-FECTOT <- Team_2_Brazil_data_census$FECTOT
-MORT1 <- Team_2_Brazil_data_census$MORT1
-RAZDEP <- Team_2_Brazil_data_census$RAZDEP
-SOBRE60 <- Team_2_Brazil_data_census$SOBRE60
-E_ANOSESTUDO <- Team_2_Brazil_data_census$E_ANOSESTUDO
-T_ANALF15M <- Team_2_Brazil_data_census$T_ANALF15M
-T_MED18M <- Team_2_Brazil_data_census$T_MED18M
-PRENTRAB <- Team_2_Brazil_data_census$PRENTRAB
-R1040 <- Team_2_Brazil_data_census$R1040
-RDPC <- Team_2_Brazil_data_census$RDPC
-T_ATIV2529 <- Team_2_Brazil_data_census$T_ATIV2529
-T_DES2529 <- Team_2_Brazil_data_census$T_DES2529
-TRABSC <- Team_2_Brazil_data_census$TRABSC
-T_DENS <- Team_2_Brazil_data_census$T_DENS
-AGUA_ESGOTO <- Team_2_Brazil_data_census$AGUA_ESGOTO
-PAREDE <- Team_2_Brazil_data_census$PAREDE
-T_M10A14CF <- Team_2_Brazil_data_census$T_M10A14CF
-T_NESTUDA_NTRAB_MMEIO <- Team_2_Brazil_data_census$T_NESTUDA_NTRAB_MMEIO
-T_OCUPDESLOC_1 <- Team_2_Brazil_data_census$T_OCUPDESLOC_1
-T_SLUZ <- Team_2_Brazil_data_census$T_SLUZ
-HOMEMTOT <- Team_2_Brazil_data_census$HOMEMTOT
-MULHERTOT <- Team_2_Brazil_data_census$MULHERTOT
-pesoRUR <- Team_2_Brazil_data_census$pesoRUR
-pesotot <- Team_2_Brazil_data_census$pesotot
-pesourb <- Team_2_Brazil_data_census$pesourb
-House_services <- Team_2_Brazil_data_census$House_services
+#this model has every variable with the exception of the factors and the ones that have direct correlation 
+OLS_model_1 <- lm(R1040 ~ ESPVIDA + FECTOT + MORT1 + RAZDEP + SOBRE60 + E_ANOSESTUDO + T_ANALF15M + T_MED18M 
+            + PRENTRAB + RDPC + T_ATIV2529 + T_DES2529 + TRABSC + T_DENS + AGUA_ESGOTO + PAREDE + T_M10A14CF 
+            + T_NESTUDA_NTRAB_MMEIO + T_OCUPDESLOC_1 + T_SLUZ + HOMEMTOT + pesoRUR + pesotot - 1,
+            data = brazil_census_df, 
+            singular.ok = FALSE)
 
-#this model has every variable with the exeption of NOMEMUN (because it is a character variable) and House_services 
-model_1 <- lm(R1040 ~ AGUA_ESGOTO + CODMUN6 + E_ANOSESTUDO + ESPVIDA + FECTOT + HOMEMTOT + T_MED18M + MORT1 + MULHERTOT + PAREDE + pesoRUR + pesotot + pesourb + PRENTRAB + RAZDEP + RDPC + SOBRE60 + T_ANALF15M + T_ATIV2529 + T_DENS + T_DES2529 + T_M10A14CF + T_NESTUDA_NTRAB_MMEIO + T_OCUPDESLOC_1 + TRABSC + T_SLUZ + UF - 1)
+options(scipen = 999) #stop showing number in scientific notation
 
-#this model has all the relevant variables minus the ones mentioned above 
-model_2 <- lm(R1040 ~ AGUA_ESGOTO + E_ANOSESTUDO + ESPVIDA + FECTOT + HOMEMTOT + MORT1 + MULHERTOT + PAREDE + pesoRUR + RAZDEP + RDPC + T_ATIV2529 + T_DENS + T_DES2529 + T_NESTUDA_NTRAB_MMEIO + T_SLUZ - 1,
-              singular.ok = FALSE)
+summary(OLS_model_1) # Check our variables
 
-#this model has all the relevant variables - AGUA_ESGOTO and T_SLUZ that were replaced by House_services
-model_3 <- lm(R1040 ~ E_ANOSESTUDO + ESPVIDA + FECTOT + HOMEMTOT + MORT1 + MULHERTOT + PAREDE + pesoRUR + RAZDEP + RDPC + T_ATIV2529 + T_DENS + T_DES2529 + T_NESTUDA_NTRAB_MMEIO + House_services - 1,
-              singular.ok = FALSE)
+OLS_model_1 <- step(OLS_model_1, direction = "backward") #This step chooses the best variables for the model by removing the ones that dont explain much
 
-summary(model_1)
-summary(model_2)
-summary(model_3)
+summary(OLS_model_1) #these are the best variables, there is a SLIGHT increase in adjusted r and F statistic and RSE decrease
 
-#AFTER I WILL WRITE AN EXPLANTION (, but you should inform what is the model that you are working with and analyze why including House_services to your old model is helpful or not and why. Make a connection to the theory behind OLS - explain in a way that your manager understands)
+#this is our model
+OLS_model_1 <- lm(R1040 ~ ESPVIDA + FECTOT + MORT1 + RAZDEP + SOBRE60 + E_ANOSESTUDO + T_ANALF15M + PRENTRAB
+                  + RDPC + T_ATIV2529 + T_DES2529 + T_DENS + AGUA_ESGOTO + PAREDE + T_NESTUDA_NTRAB_MMEIO
+                  + T_SLUZ + HOMEMTOT + pesoRUR + pesotot - 1,
+                  data = brazil_census_df, 
+                  singular.ok = FALSE)
 
-###The first model was used to see what variables were relevant. 
-###On model 2 we see our model with only the relevant variables (in this model we use the separated variables (light and water) and not the house_services variable)
-###On model 3 we see our model with the house_services variable instead of t he other 2. 
-###We need to remove the other 2 because the variable that we created has a perfect multicollinearity with the initial variables.
-###This means that we cant apply the OLS method because it requires variable independance.
-###We force our linear model to apply the OLS method by setting singular.ok = FALSE and thats why when we try to use all the varibales it gives an error message, so we need to remove the other 2.
-###We can see that the model fits better with the data when we have water and light separated instead of having house_services because our adjusted r2 is higher and our residual standard error is lower.
+#Now we remove the AGUA_ESGOTO and T_SLUZ variables to include the House_services and see how the model performs
+OLS_model_2 <- lm(R1040 ~ ESPVIDA + FECTOT + MORT1 + RAZDEP + SOBRE60 + E_ANOSESTUDO + T_ANALF15M + PRENTRAB
+                  + RDPC + T_ATIV2529 + T_DES2529 + T_DENS + PAREDE + T_NESTUDA_NTRAB_MMEIO
+                  + HOMEMTOT + pesoRUR + pesotot + House_services - 1,
+                  data = brazil_census_df, 
+                  singular.ok = FALSE)
 
-###########################################################################################################################
+summary(OLS_model_2)
+
+#We see that our model under performs with this variable instead of the other 2 
+
+
+###################################################################################################################################
 #1.2
 
-install.packages("glmnet")
-library(glmnet)
+x <- as.matrix(select(brazil_census_df, 
+                      ESPVIDA, FECTOT, MORT1, RAZDEP, SOBRE60, E_ANOSESTUDO, T_ANALF15M, PRENTRAB,
+                      RDPC, T_ATIV2529, T_DES2529, T_DENS, PAREDE, T_NESTUDA_NTRAB_MMEIO,
+                      HOMEMTOT, pesoRUR, pesotot, House_services))
+
+y <- brazil_census_df$R1040
+
+# Run Lasso regression (alpha = 1 for Lasso)
+first_lasso_model <- glmnet(x, y, alpha = 1)
+plot(first_lasso_model, label = TRUE)
 
 
-y <- R1040
-X <- model.matrix(R1040 ~ E_ANOSESTUDO + ESPVIDA + FECTOT + HOMEMTOT + 
-                    MORT1 + MULHERTOT + PAREDE + pesoRUR + RAZDEP + RDPC + 
-                    T_ATIV2529 + T_DENS + T_DES2529 + T_NESTUDA_NTRAB_MMEIO + 
-                    House_services + AGUA_ESGOTO + T_SLUZ,
-                  data = Team_2_Brazil_data_census)[,-1]
 
-lasso_model <- glmnet(X, y, alpha = 1)
-coef(lasso_model)
+plot(first_lasso_model, xvar = "lambda", label = TRUE)
 
-###The model works and i think that we basically say that the coef are closer to 0 in comparison to the first model.
-###Not sure i gees we need to see the lecture slides 
+# Display the coefficients
+coef(first_lasso_model)
+coef(OLS_model_2)
 
-###########################################################################################################################
-#Question 2.1
+###################################################################################################################################
+#2.1
+
+#Divide data into test and train
 
 set.seed(123)
-train_indices <- sample(1:nrow(Team_2_Brazil_data_census), 3150)
-train_set <- Team_2_Brazil_data_census[train_indices, ]
-test_set <- Team_2_Brazil_data_census[-train_indices, ]
 
-#Question 2.2
-
-#LASSO
-
-X2 <- model.matrix(R1040 ~ E_ANOSESTUDO + ESPVIDA + FECTOT + HOMEMTOT + 
-                    MORT1 + MULHERTOT + PAREDE + pesoRUR + RAZDEP + RDPC + 
-                    T_ATIV2529 + T_DENS + T_DES2529 + T_NESTUDA_NTRAB_MMEIO + 
-                    House_services + AGUA_ESGOTO + T_SLUZ,
-                   data = train_set)[,-1]
-
-y2 <- train_set$R1040
-
-cv_lasso <- cv.glmnet(X2, y2,
-                      alpha = 1)
-
-print(cv_lasso$lambda.min) #best cross validated lambda
-
-print(cv_lasso$lambda.1se) #conservative estimate of best lambda 
-
-
-lasso_bestlambda <- glmnet(X2, y2,
-                           alpha = 1,
-                           lambda = cv_lasso$lambda.min)
-
-round(lasso_bestlambda$beta, 2)
-
-#ELASTIC_NET with chatgpt
-
-# Set up a sequence of alpha values to test
-alpha_seq <- seq(0, 1, by = 0.1)
-results <- data.frame(alpha = numeric(), lambda = numeric(), mse = numeric())
-
-# Loop through the alpha values to perform cross-validation
-for (a in alpha_seq) {
-  enet_model <- cv.glmnet(x, y, alpha = a)  # Cross-validation for Elastic Net
-  best_lambda <- enet_model$lambda.min  # Get the best lambda for this alpha
-  mse <- min(enet_model$cvm)  # Minimum MSE for the best lambda
-  results <- rbind(results, data.frame(alpha = a, lambda = best_lambda, mse = mse))
-}
-
-# Find the best alpha and corresponding lambda
-best_row <- results[which.min(results$mse), ]
-best_alpha_enet <- best_row$alpha
-best_lambda_enet <- best_row$lambda
-
-# Print the best parameters
-cat("Best Elastic Net Lambda:", best_lambda_enet, "\n")
-cat("Best Elastic Net Alpha:", best_alpha_enet, "\n")
+train_indices <- sample(1:nrow(brazil_census_df), 3150)
+train_data <- brazil_census_df[train_indices, ]
+test_data <- brazil_census_df[-train_indices, ]
 
 
 
+x = train_data[,-c(1,2,3,13,30,31,32,33)] #remove factor variables and dependent variable
+y = train_data$R1040
 
-
-
-
-
-###CODES ACCORDING TO THE VIDEO
-#Adding House Services
-House_services <- Team2$AGUA_ESGOTO + Team2$T_SLUZ
-Team2$House_services <- House_services
-
-#Install Packages 
-install.packages("glmnet")
-library(glmnet)
-install.packages("caret")
-library(caret)
-install.packages("caretEnsemble")
-library(caretEnsemble)
-install.packages("elasticnet")
-library(elasticnet)
-install.packages("psych")
-library(psych)
-
-#Creating Training & Test
-set.seed(123)
-train_indices <- sample(1:nrow(Team2), 3150)
-train_set <- Team2[train_indices, ]
-test_set <- Team2[-train_indices, ]
-
-x <- model.matrix(R1040 ~ UF + CODMUN6 + ESPVIDA + FECTOT + MORT1 + 
-                     RAZDEP + SOBRE60 + E_ANOSESTUDO + T_ANALF15M + T_MED18M + 
-                     PRENTRAB + RDPC + T_ATIV2529 + T_DES2529 + TRABSC + T_DENS + 
-                     AGUA_ESGOTO + PAREDE + T_M10A14CF + T_NESTUDA_NTRAB_MMEIO + 
-                     T_OCUPDESLOC_1 + T_SLUZ + HOMEMTOT + MULHERTOT + 
-                     pesoRUR + pesotot + pesourb + House_services,
-                   data = train_set)[,-1]
-
-y <- train_set$R1040
-
-#Cross Validation 
 fitControl <- trainControl(method = "repeatedcv", number = 10, repeats = 5, verboseIter = TRUE)
 
-#Lasso 
+#########LASSO
 set.seed(123)
-#alpha is 1, Elastic net reduces to Lasso
-#use glmnet package
-cvfit <- cv.glmnet(x=as.matrix(x), y, type.measure = "mse", nfolds = 10,)
-print(cvfit)
+lasso_model <- train(x = x, y = y,
+                     method = 'glmnet',
+                     tuneGrid = expand.grid(alpha = 1,
+                                            lambda = seq(0.0001, 1, length =100)),
+                     trControl = fitControl)
 
-#use caret package
-lasso <- train(R1040 ~ UF + CODMUN6 + ESPVIDA + FECTOT + MORT1 + 
-                 RAZDEP + SOBRE60 + E_ANOSESTUDO + T_ANALF15M + T_MED18M + 
-                 PRENTRAB + RDPC + T_ATIV2529 + T_DES2529 + TRABSC + T_DENS + 
-                 AGUA_ESGOTO + PAREDE + T_M10A14CF + T_NESTUDA_NTRAB_MMEIO + 
-                 T_OCUPDESLOC_1 + T_SLUZ + HOMEMTOT + MULHERTOT + 
-                 pesoRUR + pesotot + pesourb + House_services,
-               train_set,
-               method = 'glmnet',
-               tuneGrid = expand.grid(alpha = 1,
-                                      lambda = seq(0.0001, 1, length =100)),
-               trControl = fitControl
-)
+plot(lasso_model)
+lasso_model
+plot(lasso_model$finalModel, xvar = "lambda", label = TRUE) #Coef path
+plot(varImp(lasso_model, scale = TRUE)) #Coef importance
 
-plot(lasso)
-lasso
-plot(lasso$finalModel, xvar = "lambda", label = TRUE)
-plot(lasso$finalModel, xvar = "dev", label = TRUE)
-plot(varImp(lasso, scale = TRUE))
+#See the coef with the best lambda for the lasso regression
+best_lambda <- lasso_model$bestTune$lambda
+final_model <- glmnet(x, y, alpha = 1, lambda = best_lambda)
+coef(final_model)
 
-### Optimal lambda for lasso is 0.0304. 
+#########Elastic net
 
-#Elastic Net 
 set.seed(123)
 
-elasticNet <- train(R1040 ~ UF + CODMUN6 + ESPVIDA + FECTOT + MORT1 + 
-                      RAZDEP + SOBRE60 + E_ANOSESTUDO + T_ANALF15M + T_MED18M + 
-                      PRENTRAB + RDPC + T_ATIV2529 + T_DES2529 + TRABSC + T_DENS + 
-                      AGUA_ESGOTO + PAREDE + T_M10A14CF + T_NESTUDA_NTRAB_MMEIO + 
-                      T_OCUPDESLOC_1 + T_SLUZ + HOMEMTOT + MULHERTOT + 
-                      pesoRUR + pesotot + pesourb + House_services,
-                    train_set,
+fitControl <- trainControl(method = "repeatedcv", number = 10, repeats = 5, verboseIter = TRUE)
+
+elasticNet <- train(x = x, y = y,
                     method = 'glmnet',
                     tuneGrid = expand.grid(alpha = seq(0.0001, 1, length =10),
                                            lambda = seq(0.0001, 1, length =10)),
-                    trControl = fitControl
-)
+                    trControl = fitControl)
 
 plot(elasticNet)
 elasticNet
 plot(elasticNet$finalModel, xvar = "lambda", label = TRUE)
 plot(elasticNet$finalModel, xvar = "dev", label = TRUE)
 plot(varImp(elasticNet, scale = FALSE))
-
 # Optimal alpha = 0.3334 and lambda = 0.1112
 
 #Comparing Models
