@@ -120,7 +120,7 @@ test_data <- brazil_census_df[-train_indices, ]
 
 
 
-x_train = model.matrix(~ ESPVIDA + FECTOT + MORT1 + RAZDEP + SOBRE60 + E_ANOSESTUDO + T_ANALF15M + T_MED18M 
+x_train <- model.matrix(~ ESPVIDA + FECTOT + MORT1 + RAZDEP + SOBRE60 + E_ANOSESTUDO + T_ANALF15M + T_MED18M 
                  + PRENTRAB + RDPC + T_ATIV2529 + T_DES2529 + TRABSC + T_DENS + AGUA_ESGOTO + PAREDE 
                  + T_M10A14CF + T_NESTUDA_NTRAB_MMEIO + T_OCUPDESLOC_1 + T_SLUZ + HOMEMTOT + MULHERTOT
                  + pesoRUR + pesotot + pesourb + House_services,
@@ -128,7 +128,7 @@ x_train = model.matrix(~ ESPVIDA + FECTOT + MORT1 + RAZDEP + SOBRE60 + E_ANOSEST
 
 x_train <- x_train[,-1] #remove intercept
 
-y_train = train_data$R1040
+y_train <- train_data$R1040
 
 
 #########LASSO
@@ -183,7 +183,7 @@ mse_comparison <- cbind(best_mse_lasso, best_mse_net)
 colnames(mse_comparison) <- c("Lasso", "Elastic Net")
 rownames(mse_comparison) <- "Best MSE"
 print(mse_comparison)#This is the matrix comparing the best MSE 
-#############################################################################################################################3
+#############################################################################################################################
 #2.4
 #Lasso Coef path
 lasso_coef_path <- glmnet(x_train, y_train, alpha = 1)
@@ -192,4 +192,27 @@ plot(lasso_coef_path, xvar = "lambda", label = TRUE)
 #Elastic Net Coef path
 elasticnet_coef_path <- glmnet(x_train, y_train, alpha = 0.7)
 plot(elasticnet_coef_path , xvar = "lambda", label = TRUE)
+########################################################################################################
+#2.5
 
+x_test <- model.matrix(~ ESPVIDA + FECTOT + MORT1 + RAZDEP + SOBRE60 + E_ANOSESTUDO + T_ANALF15M + T_MED18M 
+                       + PRENTRAB + RDPC + T_ATIV2529 + T_DES2529 + TRABSC + T_DENS + AGUA_ESGOTO + PAREDE 
+                       + T_M10A14CF + T_NESTUDA_NTRAB_MMEIO + T_OCUPDESLOC_1 + T_SLUZ + HOMEMTOT + MULHERTOT
+                       + pesoRUR + pesotot + pesourb + House_services,
+                       data = test_data)
+x_test <- x_test[,-1]
+
+y_test <- test_data$R1040
+
+#store the 1se lambdas for both models
+lambda1se_lasso <- cvfit_lasso$lambda.1se
+lambda1se_net <- cvfit_net$lambda.1se
+
+#run both models on the 1se lambda 
+lasso_model_1se <- glmnet(x_train, y_train, alpha = 1, lambda = lambda1se_lasso)
+elasticnet_model_1se <- glmnet(x_train, y_train, alpha = best_alpha_net, lambda = lambda1se_net)
+
+
+#PREDICTIONS
+lasso_prediction_lambdamin <- predict(lasso_model, s = lambdamin_lasso, newx = x_test)
+lasso_prediction_lambda1se <- predict(lasso_model, s = lambda1se_lasso, newx = x_test)
