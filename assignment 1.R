@@ -51,6 +51,8 @@ summary(brazil_census_df)
 # Create the House_services variable
 brazil_census_df$House_services <- brazil_census_df$AGUA_ESGOTO + brazil_census_df$T_SLUZ
 
+options(scipen = 999)
+
 ####################################################################################################################################
 
 #1.1
@@ -88,9 +90,12 @@ summary(model)
 ###################################################################################################################################
 #1.2
 
-x <- as.matrix(select(brazil_census_df, FECTOT, MORT1, RAZDEP, SOBRE60, E_ANOSESTUDO, T_ANALF15M, T_MED18M, 
-                      PRENTRAB, RDPC, T_ATIV2529, T_DES2529, TRABSC, T_DENS, PAREDE, T_M10A14CF,
-                      T_NESTUDA_NTRAB_MMEIO, T_OCUPDESLOC_1, MULHERTOT, pesoRUR, House_services))
+x <- model.matrix(~ FECTOT + MORT1 + RAZDEP + SOBRE60 + E_ANOSESTUDO + T_ANALF15M + T_MED18M 
+                  + PRENTRAB + RDPC + T_ATIV2529 + T_DES2529 + TRABSC + T_DENS + PAREDE + T_M10A14CF 
+                  + T_NESTUDA_NTRAB_MMEIO + T_OCUPDESLOC_1 + MULHERTOT + pesoRUR + House_services,
+                  data = brazil_census_df)
+
+x <- x[,-1] #remove intercept
 
 y <- brazil_census_df$R1040
 
@@ -115,104 +120,67 @@ test_data <- brazil_census_df[-train_indices, ]
 
 
 
-x = train_data[,-c(1,2,3,13,30,31,32,33)] #remove factor variables and dependent variable
+x = model.matrix(~ ESPVIDA + FECTOT + MORT1 + RAZDEP + SOBRE60 + E_ANOSESTUDO + T_ANALF15M + T_MED18M 
+                 + PRENTRAB + RDPC + T_ATIV2529 + T_DES2529 + TRABSC + T_DENS + AGUA_ESGOTO + PAREDE 
+                 + T_M10A14CF + T_NESTUDA_NTRAB_MMEIO + T_OCUPDESLOC_1 + T_SLUZ + HOMEMTOT + MULHERTOT
+                 + pesoRUR + pesotot + pesourb + House_services,
+                 data = train_data)
+
+x <- x[,-1] #remove intercept
+
 y = train_data$R1040
 
-fitControl <- trainControl(method = "repeatedcv", number = 10, repeats = 5, verboseIter = TRUE)
 
 #########LASSO
 set.seed(123)
-lasso_model <- train(x = x, y = y,
-                     method = 'glmnet',
-                     tuneGrid = expand.grid(alpha = 1,
-                                            lambda = seq(0.0001, 1, length =100)),
-                     trControl = fitControl)
+cvfit_lasso <- cv.glmnet(x = x, y = y,
+                         alpha = 1)
 
-plot(lasso_model)
-lasso_model
-plot(lasso_model$finalModel, xvar = "lambda", label = TRUE) #Coef path
-plot(varImp(lasso_model, scale = TRUE)) #Coef importance
+plot(cvfit_lasso)
+print(cvfit_lasso)
+best_lambda_lasso = cvfit_lasso$lambda.min
+best_mse_lasso = min(cvfit_lasso$cvm)
 
-#See the coef with the best lambda for the lasso regression
-best_lambda <- lasso_model$bestTune$lambda
-final_model <- glmnet(x, y, alpha = 1, lambda = best_lambda)
-coef(final_model)
+lasso_model <- glmnet(x = x, y = y,
+                      alpha = 1,
+                      lambda = best_lambda_lasso)
+
+lasso_model_coef <- coef(lasso_model)
+lasso_model_coef
 
 #########Elastic net
 
 set.seed(123)
 
-fitControl <- trainControl(method = "repeatedcv", number = 10, repeats = 5, verboseIter = TRUE)
-
-elasticNet <- train(x = x, y = y,
-                    method = 'glmnet',
-                    tuneGrid = expand.grid(alpha = seq(0.0001, 1, length =10),
-                                           lambda = seq(0.0001, 1, length =10)),
-                    trControl = fitControl)
-
-plot(elasticNet)
-elasticNet
-plot(elasticNet$finalModel, xvar = "lambda", label = TRUE)
-plot(elasticNet$finalModel, xvar = "dev", label = TRUE)
-plot(varImp(elasticNet, scale = FALSE))
-# Optimal alpha = 0.3334 and lambda = 0.1112
-
-#Comparing Models
-listOfModels <- list(Lasso = lasso, ElasticNet = elasticNet)
-res <- resamples(listOfModels)
-summary(res) 
-xyplot(res, metric = 'RMSE')
-
-#best model
-elasticNet$bestTune
-best <- elasticNet$finalModel
-
-
-
-
-
-
-
-
-
-
-
-#LASSO WITH GLMNET
-set.seed(123)
-cvfit <- cv.glmnet(x=as.matrix(x), y, alpha = 1, type.measure = "mse", nfolds = 10,)
-print(cvfit)
-lasso <- glmnet(x = x, y = y, alpha = 1, lambda = cvfit$lambda.min)
-coef(lasso)
-lasso
-
-
-
-##ELASTIC NET WITH GLMNET
-set.seed(123)
 alpha_values <- seq(0, 1, by = 0.1)
 
-best_alpha <- NA
-best_lambda <- NA
-best_mse <- Inf
+best_alpha_net <- NA
+best_lambda_net <- NA
+best_mse_net <- Inf
 
-for (alpha_val in alpha_values) {cvfit <- cv.glmnet(x = as.matrix(x), y = y, alpha = alpha_val, nfolds = 10)
-  
-  if (min(cvfit$cvm) < best_mse) {
-    best_mse <- min(cvfit$cvm)
-    best_alpha <- alpha_val
-    best_lambda <- cvfit$lambda.min}}
+for (alpha_val in alpha_values) {cvfit_net <- cv.glmnet(x = x, y = y, alpha = alpha_val, nfolds = 10)
 
-cat("Best alpha:", best_alpha, "\n")
-cat("Best lambda:", best_lambda, "\n")
+if (min(cvfit_net$cvm) < best_mse_net) {
+  best_mse_net <- min(cvfit_net$cvm)
+  best_alpha_net <- alpha_val
+  best_lambda_net <- cvfit_net$lambda.min}}
 
-final_model <- glmnet(x = as.matrix(x), y = y, alpha = best_alpha, lambda = best_lambda)
-print(coef(final_model))
+cat("Best alpha:", best_alpha_net, "\n")
+cat("Best lambda:", best_lambda_net, "\n")
 
-# LASSO 
-set.seed(123)
-cvfit_lasso <- cv.glmnet(x = as.matrix(x), y = y, alpha = 1, nfolds = 10)
+elasticnet_model <- glmnet(x = x, y = y, alpha = best_alpha_net, lambda = best_lambda_net)
 
-#COMPARING MSE
+elastic_net_model_coef <- coef(elasticnet_model)
+elastic_net_model_coef
+
+#This is the matrix comparing the lasso and elastic net coef
+models_coef <- cbind(lasso_model_coef, elastic_net_model_coef)
+colnames(models_coef) <- c("Lasso Coef","Elastic Net Coef")
+print(models_coef)
+
 best_mse_lasso <- min(cvfit_lasso$cvm)
-cat("Best MSE for LASSO:", best_mse_lasso, "\n")
-cat("Best MSE for Elastic Net:", best_mse, "\n")
+
+mse_comparison <- cbind(best_mse_lasso, best_mse_net)
+colnames(mse_comparison) <- c("Lasso", "Elastic Net")
+rownames(mse_comparison) <- "Best MSE"
+mse_comparison
