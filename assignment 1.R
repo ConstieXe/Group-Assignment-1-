@@ -4,13 +4,10 @@ setwd(path)
 library(readr)
 library(glmnet)
 library(caret)
-library(caretEnsemble)
-library(elasticnet)
-library(psych)
 library(tibble)
 library(tidyverse)
 library(dplyr)
-library(kableExtra)
+library(car)
 
 brazil_census_df <- read.csv2("Team_2_Brazil_data_census.csv",
                                        sep = ",", dec = ".", header = TRUE)
@@ -57,62 +54,53 @@ brazil_census_df$House_services <- brazil_census_df$AGUA_ESGOTO + brazil_census_
 ####################################################################################################################################
 
 #1.1
-
-#this model has every variable with the exception of the factors and the ones that have direct correlation 
-OLS_model_1 <- lm(R1040 ~ ESPVIDA + FECTOT + MORT1 + RAZDEP + SOBRE60 + E_ANOSESTUDO + T_ANALF15M + T_MED18M 
+  
+model <- lm(R1040 ~ ESPVIDA + FECTOT + MORT1 + RAZDEP + SOBRE60 + E_ANOSESTUDO + T_ANALF15M + T_MED18M 
             + PRENTRAB + RDPC + T_ATIV2529 + T_DES2529 + TRABSC + T_DENS + AGUA_ESGOTO + PAREDE + T_M10A14CF 
-            + T_NESTUDA_NTRAB_MMEIO + T_OCUPDESLOC_1 + T_SLUZ + HOMEMTOT + pesoRUR + pesotot - 1,
-            data = brazil_census_df, 
-            singular.ok = FALSE)
+            + T_NESTUDA_NTRAB_MMEIO + T_OCUPDESLOC_1 + T_SLUZ + HOMEMTOT + MULHERTOT + pesoRUR + pesotot + pesourb + House_services,
+            data = brazil_census_df)
 
-options(scipen = 999) #stop showing number in scientific notation
+alias(model) # we see that we need to remove HOMEMTOT, T_SLUZ and pesourb
 
-summary(OLS_model_1) # Check our variables
+model <- lm(R1040 ~ ESPVIDA + FECTOT + MORT1 + RAZDEP + SOBRE60 + E_ANOSESTUDO + T_ANALF15M + T_MED18M 
+            + PRENTRAB + RDPC + T_ATIV2529 + T_DES2529 + TRABSC + T_DENS + AGUA_ESGOTO + PAREDE + T_M10A14CF 
+            + T_NESTUDA_NTRAB_MMEIO + T_OCUPDESLOC_1 + MULHERTOT + pesoRUR + pesotot + House_services,
+            data = brazil_census_df)
 
-OLS_model_1 <- step(OLS_model_1, direction = "backward") #This step chooses the best variables for the model by removing the ones that dont explain much
-
-summary(OLS_model_1) #these are the best variables, there is a SLIGHT increase in adjusted r and F statistic and RSE decrease
-
-#this is our model
-OLS_model_1 <- lm(R1040 ~ ESPVIDA + FECTOT + MORT1 + RAZDEP + SOBRE60 + E_ANOSESTUDO + T_ANALF15M + PRENTRAB
-                  + RDPC + T_ATIV2529 + T_DES2529 + T_DENS + AGUA_ESGOTO + PAREDE + T_NESTUDA_NTRAB_MMEIO
-                  + T_SLUZ + HOMEMTOT + pesoRUR + pesotot - 1,
-                  data = brazil_census_df, 
-                  singular.ok = FALSE)
-
-#Now we remove the AGUA_ESGOTO and T_SLUZ variables to include the House_services and see how the model performs
-OLS_model_2 <- lm(R1040 ~ ESPVIDA + FECTOT + MORT1 + RAZDEP + SOBRE60 + E_ANOSESTUDO + T_ANALF15M + PRENTRAB
-                  + RDPC + T_ATIV2529 + T_DES2529 + T_DENS + PAREDE + T_NESTUDA_NTRAB_MMEIO
-                  + HOMEMTOT + pesoRUR + pesotot + House_services - 1,
-                  data = brazil_census_df, 
-                  singular.ok = FALSE)
-
-summary(OLS_model_2)
-
-#We see that our model under performs with this variable instead of the other 2 
+##########################################################################################
+vif_values <- vif(model)
+print(vif_values)
 
 
+#we don't remove house service because manager wants it in the model, but we should remove it 
+
+model <- lm(R1040 ~ FECTOT + MORT1 + RAZDEP + SOBRE60 + E_ANOSESTUDO + T_ANALF15M + T_MED18M 
+            + PRENTRAB + RDPC + T_ATIV2529 + T_DES2529 + TRABSC + T_DENS + PAREDE + T_M10A14CF 
+            + T_NESTUDA_NTRAB_MMEIO + T_OCUPDESLOC_1 + MULHERTOT + pesoRUR + House_services,
+            data = brazil_census_df)
+
+model <- lm(R1040 ~ FECTOT + MORT1 + RAZDEP + SOBRE60 + E_ANOSESTUDO + T_ANALF15M + T_MED18M 
+                     + PRENTRAB + RDPC + T_ATIV2529 + T_DES2529 + TRABSC + T_DENS + PAREDE + T_M10A14CF 
+                     + T_NESTUDA_NTRAB_MMEIO + T_OCUPDESLOC_1 + MULHERTOT + pesoRUR + House_services,
+                     data = brazil_census_df,
+                     singular.ok = FALSE)
+summary(model)
 ###################################################################################################################################
 #1.2
 
-x <- as.matrix(select(brazil_census_df, 
-                      ESPVIDA, FECTOT, MORT1, RAZDEP, SOBRE60, E_ANOSESTUDO, T_ANALF15M, PRENTRAB,
-                      RDPC, T_ATIV2529, T_DES2529, T_DENS, PAREDE, T_NESTUDA_NTRAB_MMEIO,
-                      HOMEMTOT, pesoRUR, pesotot, House_services))
+x <- as.matrix(select(brazil_census_df, FECTOT, MORT1, RAZDEP, SOBRE60, E_ANOSESTUDO, T_ANALF15M, T_MED18M, 
+                      PRENTRAB, RDPC, T_ATIV2529, T_DES2529, TRABSC, T_DENS, PAREDE, T_M10A14CF,
+                      T_NESTUDA_NTRAB_MMEIO, T_OCUPDESLOC_1, MULHERTOT, pesoRUR, House_services))
 
 y <- brazil_census_df$R1040
 
 # Run Lasso regression (alpha = 1 for Lasso)
 first_lasso_model <- glmnet(x, y, alpha = 1)
-plot(first_lasso_model, label = TRUE)
-
-
-
 plot(first_lasso_model, xvar = "lambda", label = TRUE)
 
 # Display the coefficients
 coef(first_lasso_model)
-coef(OLS_model_2)
+coef(model)
 
 ###################################################################################################################################
 #2.1
