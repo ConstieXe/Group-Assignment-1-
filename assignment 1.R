@@ -173,14 +173,14 @@ elasticnet_model <- glmnet(x = x, y = y, alpha = best_alpha_net, lambda = best_l
 elastic_net_model_coef <- coef(elasticnet_model)
 elastic_net_model_coef
 
-#This is the matrix comparing the lasso and elastic net coef
+
 models_coef <- cbind(lasso_model_coef, elastic_net_model_coef)
 colnames(models_coef) <- c("Lasso Coef","Elastic Net Coef")
-print(models_coef)
+print(models_coef)#This is the matrix comparing the lasso and elastic net coef
 
 best_mse_lasso <- min(cvfit_lasso$cvm)
 
 mse_comparison <- cbind(best_mse_lasso, best_mse_net)
 colnames(mse_comparison) <- c("Lasso", "Elastic Net")
 rownames(mse_comparison) <- "Best MSE"
-mse_comparison
+print(mse_comparison)#This is the matrix comparing the best MSE 
