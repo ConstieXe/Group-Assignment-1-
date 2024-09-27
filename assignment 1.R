@@ -9,11 +9,11 @@ library(tidyverse)
 library(dplyr)
 library(car)
 
-brazil_census_df <- read.csv2("Team_2_Brazil_data_census.csv",
-                                       sep = ",", dec = ".", header = TRUE)
+brazil_census <- read.csv2("Team_2_Brazil_data_census.csv",
+                              sep = ",", dec = ".", header = TRUE)
 
 
-brazil_census_df <- brazil_census_df[,-1] #This removes that useless column 
+brazil_census <- brazil_census[,-1] #This removes that useless column 
 
 
 #creating vectors for state information
@@ -28,10 +28,10 @@ df_regions <- tibble(
 df_regions
 
 #Merging the df
-brazil_census_df <- merge(brazil_census_df, df_regions, by = "UF")
+brazil_census <- merge(brazil_census, df_regions, by = "UF")
 
 #Changing them to factors
-brazil_census_df <- brazil_census_df %>%
+brazil_census <- brazil_census %>%
   mutate(state_letters = as.factor(state_letters),
          state_names = as.factor(state_names),
          region_letters = as.factor(region_letters),
@@ -41,33 +41,33 @@ brazil_census_df <- brazil_census_df %>%
          NOMEMUN = as.factor(NOMEMUN))
 
 #Check for missing elements
-sum(is.na(brazil_census_df))
+sum(is.na(brazil_census))
 
 #Check the variables
-str(brazil_census_df)
-summary(brazil_census_df)
+str(brazil_census)
+summary(brazil_census)
 
 
 # Create the House_services variable
-brazil_census_df$House_services <- brazil_census_df$AGUA_ESGOTO + brazil_census_df$T_SLUZ
+brazil_census$House_services <- brazil_census$AGUA_ESGOTO + brazil_census$T_SLUZ
 
 options(scipen = 999)
 
 ####################################################################################################################################
 
 #1.1
-  
+
 model <- lm(R1040 ~ ESPVIDA + FECTOT + MORT1 + RAZDEP + SOBRE60 + E_ANOSESTUDO + T_ANALF15M + T_MED18M 
             + PRENTRAB + RDPC + T_ATIV2529 + T_DES2529 + TRABSC + T_DENS + AGUA_ESGOTO + PAREDE + T_M10A14CF 
             + T_NESTUDA_NTRAB_MMEIO + T_OCUPDESLOC_1 + T_SLUZ + HOMEMTOT + MULHERTOT + pesoRUR + pesotot + pesourb + House_services,
-            data = brazil_census_df)
+            data = brazil_census)
 
 alias(model) # we see that we need to remove HOMEMTOT, T_SLUZ and pesourb
 
 model <- lm(R1040 ~ ESPVIDA + FECTOT + MORT1 + RAZDEP + SOBRE60 + E_ANOSESTUDO + T_ANALF15M + T_MED18M 
             + PRENTRAB + RDPC + T_ATIV2529 + T_DES2529 + TRABSC + T_DENS + AGUA_ESGOTO + PAREDE + T_M10A14CF 
             + T_NESTUDA_NTRAB_MMEIO + T_OCUPDESLOC_1 + MULHERTOT + pesoRUR + pesotot + House_services,
-            data = brazil_census_df)
+            data = brazil_census)
 
 ##########################################################################################
 vif_values <- vif(model)
@@ -79,13 +79,9 @@ print(vif_values)
 model <- lm(R1040 ~ FECTOT + MORT1 + RAZDEP + SOBRE60 + E_ANOSESTUDO + T_ANALF15M + T_MED18M 
             + PRENTRAB + RDPC + T_ATIV2529 + T_DES2529 + TRABSC + T_DENS + PAREDE + T_M10A14CF 
             + T_NESTUDA_NTRAB_MMEIO + T_OCUPDESLOC_1 + MULHERTOT + pesoRUR + House_services,
-            data = brazil_census_df)
+            data = brazil_census,
+            singular.ok =  FALSE)
 
-model <- lm(R1040 ~ FECTOT + MORT1 + RAZDEP + SOBRE60 + E_ANOSESTUDO + T_ANALF15M + T_MED18M 
-                     + PRENTRAB + RDPC + T_ATIV2529 + T_DES2529 + TRABSC + T_DENS + PAREDE + T_M10A14CF 
-                     + T_NESTUDA_NTRAB_MMEIO + T_OCUPDESLOC_1 + MULHERTOT + pesoRUR + House_services,
-                     data = brazil_census_df,
-                     singular.ok = FALSE)
 summary(model)
 ###################################################################################################################################
 #1.2
@@ -93,11 +89,11 @@ summary(model)
 x <- model.matrix(~ FECTOT + MORT1 + RAZDEP + SOBRE60 + E_ANOSESTUDO + T_ANALF15M + T_MED18M 
                   + PRENTRAB + RDPC + T_ATIV2529 + T_DES2529 + TRABSC + T_DENS + PAREDE + T_M10A14CF 
                   + T_NESTUDA_NTRAB_MMEIO + T_OCUPDESLOC_1 + MULHERTOT + pesoRUR + House_services,
-                  data = brazil_census_df)
+                  data = brazil_census)
 
 x <- x[,-1] #remove intercept
 
-y <- brazil_census_df$R1040
+y <- brazil_census$R1040
 
 # Run Lasso regression (alpha = 1 for Lasso)
 first_lasso_model <- glmnet(x, y, alpha = 1)
@@ -114,17 +110,17 @@ coef(model)
 
 set.seed(123)
 
-train_indices <- sample(1:nrow(brazil_census_df), 3150)
-train_data <- brazil_census_df[train_indices, ]
-test_data <- brazil_census_df[-train_indices, ]
+train_indices <- sample(1:nrow(brazil_census), 3150)
+train_data <- brazil_census[train_indices, ]
+test_data <- brazil_census[-train_indices, ]
 
 
 
 x_train <- model.matrix(~ ESPVIDA + FECTOT + MORT1 + RAZDEP + SOBRE60 + E_ANOSESTUDO + T_ANALF15M + T_MED18M 
-                 + PRENTRAB + RDPC + T_ATIV2529 + T_DES2529 + TRABSC + T_DENS + AGUA_ESGOTO + PAREDE 
-                 + T_M10A14CF + T_NESTUDA_NTRAB_MMEIO + T_OCUPDESLOC_1 + T_SLUZ + HOMEMTOT + MULHERTOT
-                 + pesoRUR + pesotot + pesourb + House_services,
-                 data = train_data)
+                        + PRENTRAB + RDPC + T_ATIV2529 + T_DES2529 + TRABSC + T_DENS + AGUA_ESGOTO + PAREDE 
+                        + T_M10A14CF + T_NESTUDA_NTRAB_MMEIO + T_OCUPDESLOC_1 + T_SLUZ + HOMEMTOT + MULHERTOT
+                        + pesoRUR + pesotot + pesourb + House_services,
+                        data = train_data)
 
 x_train <- x_train[,-1] #remove intercept
 
@@ -141,12 +137,12 @@ print(cvfit_lasso)
 lambdamin_lasso = cvfit_lasso$lambda.min
 best_mse_lasso = min(cvfit_lasso$cvm)
 
-lasso_model <- glmnet(x = x_train, y = y_train,
+lasso_model_lambdamin <- glmnet(x = x_train, y = y_train,
                       alpha = 1,
                       lambda = lambdamin_lasso)
 
-lasso_model_coef <- coef(lasso_model)
-lasso_model_coef
+lasso_model_lambdamin_coef <- coef(lasso_model_lambdamin)
+lasso_model_lambdamin_coef
 
 #########Elastic net
 
@@ -166,18 +162,16 @@ if (min(cvfit_net$cvm) < best_mse_net) {
   lambdamin_net <- cvfit_net$lambda.min}}
 
 
-elasticnet_model <- glmnet(x = x_train, y = y_train, alpha = best_alpha_net, lambda = lambdamin_net)
+net_model_lambdamin <- glmnet(x = x_train, y = y_train, alpha = best_alpha_net, lambda = lambdamin_net)
 
-elastic_net_model_coef <- coef(elasticnet_model)
-elastic_net_model_coef
+net_model_lambdamin_coef <- coef(net_model_lambdamin)
+net_model_lambdamin_coef
 ##########################################################################################################################
 #2.3
 
-models_coef <- cbind(lasso_model_coef, elastic_net_model_coef)
+models_coef <- cbind(lasso_model_lambdamin_coef, net_model_lambdamin_coef)
 colnames(models_coef) <- c("Lasso Coef","Elastic Net Coef")
 print(models_coef)#This is the matrix comparing the lasso and elastic net coef
-
-best_mse_lasso <- min(cvfit_lasso$cvm)
 
 mse_comparison <- cbind(best_mse_lasso, best_mse_net)
 colnames(mse_comparison) <- c("Lasso", "Elastic Net")
@@ -210,9 +204,67 @@ lambda1se_net <- cvfit_net$lambda.1se
 
 #run both models on the 1se lambda 
 lasso_model_1se <- glmnet(x_train, y_train, alpha = 1, lambda = lambda1se_lasso)
-elasticnet_model_1se <- glmnet(x_train, y_train, alpha = best_alpha_net, lambda = lambda1se_net)
+net_model_1se <- glmnet(x_train, y_train, alpha = best_alpha_net, lambda = lambda1se_net)
 
 
 #PREDICTIONS
-lasso_prediction_lambdamin <- predict(lasso_model, s = lambdamin_lasso, newx = x_test)
-lasso_prediction_lambda1se <- predict(lasso_model, s = lambda1se_lasso, newx = x_test)
+#LASSO
+lasso_prediction_lambdamin <- predict(lasso_model_lambdamin, s = lambdamin_lasso, newx = x_test)
+lasso_prediction_lambda1se <- predict(lasso_model_1se, s = lambda1se_lasso, newx = x_test)
+#ELASTIC NET
+net_prediction_lambdamin <- predict(net_model_lambdamin, s = lambdamin_net, newx = x_test)
+net_prediction_lambda1se <- predict(net_model_1se, s = lambda1se_net, newx = x_test)
+
+#MSE for each model to see which is better
+mse_lassomin <- mean((y_test - lasso_prediction_lambdamin)^2)
+mse_lasso1se <- mean((y_test - lasso_prediction_lambda1se)^2)
+mse_netmin <- mean((y_test - net_prediction_lambdamin)^2)
+mse_net1se <- mean((y_test - net_prediction_lambda1se)^2)
+
+#RMSE for each model to see which is better
+rmse_lassomin <- sqrt(mse_lassomin)
+rmse_lasso1se <- sqrt(mse_lasso1se)
+rmse_netmin <- sqrt(mse_netmin)
+rmse_net1se <- sqrt(mse_net1se)
+
+#Data frame to compare results
+rmse_comparison_df <- as.data.frame(
+  list(c("Lasso Regression", "Elastic Net"),
+       c(rmse_lassomin, rmse_netmin),  
+       c(rmse_lasso1se, rmse_net1se)))
+colnames(rmse_comparison_df) <- c("Model", "RMSE Lambda min", "RMSE Lambda 1se")
+print(rmse_comparison_df)#lasso lambda min is best
+#######################################################################################################
+
+#3
+
+brazil_data_prediction <- read.csv2("Brazil_census_data_prediction.csv",
+                              sep = ",", dec = ".", header = TRUE)
+
+brazil_data_prediction <- brazil_data_prediction[,-1]
+
+brazil_data_prediction <- brazil_data_prediction %>%
+  mutate(UF = as.factor(UF),
+         CODMUN6 = as.factor(CODMUN6),
+         NOMEMUN = as.factor(NOMEMUN))
+
+brazil_data_prediction$House_services <- brazil_data_prediction$AGUA_ESGOTO + brazil_data_prediction$T_SLUZ
+
+summary(brazil_data_prediction)
+
+sum(is.na(brazil_data_prediction)) # No NA values in data set 
+
+
+x_new <- model.matrix(~ ESPVIDA + FECTOT + MORT1 + RAZDEP + SOBRE60 + E_ANOSESTUDO + T_ANALF15M + T_MED18M 
+                     + PRENTRAB + RDPC + T_ATIV2529 + T_DES2529 + TRABSC + T_DENS + AGUA_ESGOTO + PAREDE 
+                     + T_M10A14CF + T_NESTUDA_NTRAB_MMEIO + T_OCUPDESLOC_1 + T_SLUZ + HOMEMTOT + MULHERTOT
+                     + pesoRUR + pesotot + pesourb + House_services,
+                     data = brazil_data_prediction)
+x_new <- x_new[,-1]
+
+y_new <- brazil_data_prediction$R1040
+
+new_data_prediction <- predict(lasso_model_lambdamin, s = lambdamin_lasso, newx = x_test)
+
+mse <- mean((y_new - new_data_prediction)^2)
+rmse <- sqrt(mse)
