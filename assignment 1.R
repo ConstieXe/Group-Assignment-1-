@@ -227,11 +227,11 @@ rmse_netmin <- sqrt(mse_netmin)
 rmse_net1se <- sqrt(mse_net1se)
 
 #Data frame to compare results
-rmse_comparison_df <- as.data.frame(
-  list(c("Lasso Regression", "Elastic Net"),
-       c(rmse_lassomin, rmse_netmin),  
-       c(rmse_lasso1se, rmse_net1se)))
-colnames(rmse_comparison_df) <- c("", "RMSE Lambda min", "RMSE Lambda 1se")
+rmse_comparison_df <- data.frame(
+  Model = c("Lasso Regression", "Elastic Net"),
+  RMSE_Lambda_min = c(rmse_lassomin, rmse_netmin),
+  RMSE_Lambda_1se = c(rmse_lasso1se, rmse_net1se))
+
 print(rmse_comparison_df)#lasso lambda min is best
 #######################################################################################################
 
@@ -335,18 +335,9 @@ rmse_logisticmin <- sqrt(mse_logisticmin)
 rmse_logistic1se <- sqrt(mse_logistic1se)
 
 
-rmse_logistic <- as.data.frame(
-  list(
-    c("Logistic Regression"),  
-    c(rmse_logisticmin),                
-    c(rmse_logistic1se)))
-
-# Rename columns
-colnames(rmse_logistic) <- c("", "RMSE Lambda min", "RMSE Lambda 1se")
-
-# Print the comparison data frame
+rmse_logistic <- data.frame(
+  Model = "Logistic Regression",
+  RMSE_Lambda_min = rmse_logisticmin,
+  RMSE_Lambda_1se = rmse_logistic1se)
+  
 print(rmse_logistic)
-
-logistic_model <- glmnet(x_train_logistic, y_train_logistic, alpha = 0, lambda = lambdamin_logistic, family = "binomial")
-
-coef(logistic_model)
