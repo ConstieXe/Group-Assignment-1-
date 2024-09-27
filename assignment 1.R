@@ -179,11 +179,11 @@ print(mse_comparison)#This is the matrix comparing the best MSE
 #############################################################################################################################
 #2.4
 #Lasso Coef path
-lasso_coef_path <- glmnet(x_train, y_train, alpha = 1)
+lasso_coef_path <- glmnet(x_train, y_train, alpha = 1, standardize = FALSE)
 plot(lasso_coef_path, xvar = "lambda", label = TRUE)
 
 #Elastic Net Coef path
-elasticnet_coef_path <- glmnet(x_train, y_train, alpha = 0.7)
+elasticnet_coef_path <- glmnet(x_train, y_train, alpha = 0.7, standardize = FALSE)
 plot(elasticnet_coef_path , xvar = "lambda", label = TRUE)
 ########################################################################################################
 #2.5
