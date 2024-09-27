@@ -7,7 +7,6 @@ library(caret)
 library(tibble)
 library(tidyverse)
 library(dplyr)
-library(car)
 
 brazil_census <- read.csv2("Team_2_Brazil_data_census.csv",
                               sep = ",", dec = ".", header = TRUE)
@@ -268,3 +267,52 @@ new_data_prediction <- predict(lasso_model_lambdamin, s = lambdamin_lasso, newx 
 
 mse <- mean((y_new - new_data_prediction)^2)
 rmse <- sqrt(mse)
+
+####################################################################################################3
+#4.1
+
+brazil_census <- brazil_census %>%
+  mutate(Poor = ifelse(R1040 <= 9.5, 1, 0))  # 1 for Poor, 0 for Not Poor
+
+print(brazil_census)
+
+
+set.seed(123)
+
+train_indices_logistic <- sample(1:nrow(brazil_census), 3150)
+train_data_logistic <- brazil_census[train_indices_logistic, ]
+test_data_logistic <- brazil_census[-train_indices_logistic, ]
+
+
+
+x_train_logistic <- model.matrix(Poor ~ ESPVIDA + FECTOT + MORT1 + RAZDEP + SOBRE60 + E_ANOSESTUDO + T_ANALF15M + T_MED18M 
+                        + PRENTRAB + RDPC + T_ATIV2529 + T_DES2529 + TRABSC + T_DENS + AGUA_ESGOTO + PAREDE 
+                        + T_M10A14CF + T_NESTUDA_NTRAB_MMEIO + T_OCUPDESLOC_1 + T_SLUZ + HOMEMTOT + MULHERTOT
+                        + pesoRUR + pesotot + pesourb + House_services,
+                        data = train_data_logistic)
+
+
+x_test_logistic <- model.matrix(Poor ~ ESPVIDA + FECTOT + MORT1 + RAZDEP + SOBRE60 + E_ANOSESTUDO + T_ANALF15M + T_MED18M 
+                                 + PRENTRAB + RDPC + T_ATIV2529 + T_DES2529 + TRABSC + T_DENS + AGUA_ESGOTO + PAREDE 
+                                 + T_M10A14CF + T_NESTUDA_NTRAB_MMEIO + T_OCUPDESLOC_1 + T_SLUZ + HOMEMTOT + MULHERTOT
+                                 + pesoRUR + pesotot + pesourb + House_services,
+                                 data = test_data_logistic)
+
+
+x_train_logistic <- x_train_logistic[,-1] 
+x_test_logistic <- x_test_logistic[,-1] 
+
+
+y_train_logistic <- train_data_logistic$Poor
+y_test_logistic <- test_data_logistic$Poor
+
+cvfit_logistic <- cv.glmnet(x_train_logistic, y_train_logistic, alpha = 0, family = "binomial")
+print(cvfit_logistic)
+plot(cvfit_logistic)
+
+lambdamin_logistic <- cvfit_logistic$lambda.min
+lambda1se_logistic <- cvfit_logistic$lambda.1se
+
+logistic_model <- glmnet(x_train_logistic, y_train_logistic, alpha = 0, lambda = lambdamin_logistic, family = "binomial")
+
+coef(logistic_model)
