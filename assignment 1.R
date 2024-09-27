@@ -231,7 +231,7 @@ rmse_comparison_df <- as.data.frame(
   list(c("Lasso Regression", "Elastic Net"),
        c(rmse_lassomin, rmse_netmin),  
        c(rmse_lasso1se, rmse_net1se)))
-colnames(rmse_comparison_df) <- c("Model", "RMSE Lambda min", "RMSE Lambda 1se")
+colnames(rmse_comparison_df) <- c("", "RMSE Lambda min", "RMSE Lambda 1se")
 print(rmse_comparison_df)#lasso lambda min is best
 #######################################################################################################
 
@@ -271,7 +271,7 @@ rmse <- sqrt(mse)
 ####################################################################################################3
 #4.1
 
-brazil_census <- brazil_census %>%
+brazil_census <- brazil_census %>% 
   mutate(Poor = ifelse(R1040 <= 9.5, 1, 0))  # 1 for Poor, 0 for Not Poor
 
 print(brazil_census)
@@ -306,12 +306,46 @@ x_test_logistic <- x_test_logistic[,-1]
 y_train_logistic <- train_data_logistic$Poor
 y_test_logistic <- test_data_logistic$Poor
 
+
+#4.2
 cvfit_logistic <- cv.glmnet(x_train_logistic, y_train_logistic, alpha = 0, family = "binomial")
 print(cvfit_logistic)
 plot(cvfit_logistic)
 
 lambdamin_logistic <- cvfit_logistic$lambda.min
 lambda1se_logistic <- cvfit_logistic$lambda.1se
+
+logistic_model_lambdamin <- glmnet(x_train_logistic, y_train_logistic, alpha = 0, lambda = lambdamin_logistic, family = "binomial")
+
+coef(logistic_model_lambdamin)
+
+
+#4.3
+
+logistic_model_lambda1se <- glmnet(x_train_logistic, y_train_logistic, alpha = 0, lambda = lambda1se_logistic, family = "binomial")
+
+logistic_prediction_lambdamin <- predict(logistic_model_lambdamin, s = lambdamin_logistic, newx = x_test_logistic)
+logistic_prediction_lambda1se <- predict(logistic_model_lambda1se, s = lambda1se_logistic, newx = x_test_logistic)
+
+
+mse_logisticmin <- mean((y_test_logistic - logistic_prediction_lambdamin)^2)
+mse_logistic1se <- mean((y_test_logistic - logistic_prediction_lambda1se)^2)
+
+rmse_logisticmin <- sqrt(mse_logisticmin)
+rmse_logistic1se <- sqrt(mse_logistic1se)
+
+
+rmse_logistic <- as.data.frame(
+  list(
+    c("Logistic Regression"),  
+    c(rmse_logisticmin),                
+    c(rmse_logistic1se)))
+
+# Rename columns
+colnames(rmse_logistic) <- c("", "RMSE Lambda min", "RMSE Lambda 1se")
+
+# Print the comparison data frame
+print(rmse_logistic)
 
 logistic_model <- glmnet(x_train_logistic, y_train_logistic, alpha = 0, lambda = lambdamin_logistic, family = "binomial")
 
