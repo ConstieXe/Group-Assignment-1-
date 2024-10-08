@@ -1,0 +1,178 @@
+# Load necessary libraries
+library(readr)
+library(reshape2)
+library(ggplot2)
+library(dplyr)
+library(factoextra)
+library(boot)
+
+# Set working directory (adjust path to your system)
+setwd("~/Downloads")
+
+# Load datasets
+gei <- read.csv2("Team_2_gei_data.csv")
+db <- read.csv2("Team_2_db_data.csv")
+
+### --- PART 1: DATA CLEANING --- ###
+# Cleaning GEI and DB datasets
+gei <- gei[,-1]  # Remove unnecessary columns
+db <- db[,-1]
+
+# Subset and reshape GEI data for 2017-2019
+gei_cleaned <- rbind(
+  data.frame(dcast(gei[which(gei$DATE == "2017"), c("COUNTRY_NAME", "INDICATOR_NAME", "VALUE")], COUNTRY_NAME ~ INDICATOR_NAME), YEAR = "2017"),
+  data.frame(dcast(gei[which(gei$DATE == "2018"), c("COUNTRY_NAME", "INDICATOR_NAME", "VALUE")], COUNTRY_NAME ~ INDICATOR_NAME), YEAR = "2018"),
+  data.frame(dcast(gei[which(gei$DATE == "2019"), c("COUNTRY_NAME", "INDICATOR_NAME", "VALUE")], COUNTRY_NAME ~ INDICATOR_NAME), YEAR = "2019")
+)
+
+# Check column names of GEI data
+print(colnames(gei_cleaned))
+
+# Clean DB data (removing columns 7 and 8)
+db_cleaned <- db[, -c(7, 8)]
+
+# Rename columns in DB dataset
+names(db_cleaned)[c(2, 5, 6)] <- c("COUNTRY", "YEAR", "DB_score")
+
+# Check column names of DB data
+print(colnames(db_cleaned))
+
+# Ensure the columns COUNTRY and YEAR are of the same type in both datasets
+db_cleaned$COUNTRY <- as.character(db_cleaned$COUNTRY)
+gei_cleaned$COUNTRY <- as.character(gei_cleaned$COUNTRY)
+
+db_cleaned$YEAR <- as.character(db_cleaned$YEAR)
+gei_cleaned$YEAR <- as.character(gei_cleaned$YEAR)
+
+# Convert numeric columns to proper numeric types in the GEI data
+numeric_cols <- c("Competition", "Cultural.Support", "Global.Enterpreneurship.Index.Score", "High.Growth", 
+                  "Human.capital", "Internationalization", "Networking", "Oppurtunity.startup", 
+                  "Opputunity.perception", "Process.Innovation", "Product.Innovation", 
+                  "Risk.Acceptance", "Risk.Capital", "Start.up.skills", "Technology.Absorption")
+
+gei_cleaned[numeric_cols] <- lapply(gei_cleaned[numeric_cols], as.numeric)
+
+# Merge DB and GEI datasets
+db_gei_data <- merge(db_cleaned, gei_cleaned, by = c('COUNTRY', 'YEAR'))
+
+# Check if the merge was successful
+print(head(db_gei_data))
+
+### --- PART 2: DESCRIPTIVE ANALYSIS --- ###
+
+# 2.1: Scatter plot of DB scores vs GEI scores (use correct column for GEI score)
+plot(db_gei_data$DB_score, db_gei_data$Global.Enterpreneurship.Index.Score,
+     main = "Scatter Plot of DB Scores vs GEI Scores",
+     xlab = "DB Scores",
+     ylab = "GEI Scores",
+     col = "blue", pch = 19)
+
+# Add regression line
+abline(lm(Global.Enterpreneurship.Index.Score ~ DB_score, data = db_gei_data), col = "red")
+
+# Calculate and print correlation between DB and GEI scores
+correlation <- cor(db_gei_data$DB_score, db_gei_data$Global.Enterpreneurship.Index.Score)
+cat("Correlation between DB Score and GEI Score:", correlation, "\n")
+
+# 2.2: Exploring relationships between DB Score and selected GEI variables
+
+# 1. DB Score vs Opportunity Startup
+cor_opportunity_startup <- cor(db_gei_data$DB_score, db_gei_data$Oppurtunity.startup, use = "complete.obs")
+cat("Correlation between DB score and Opportunity Startup:", cor_opportunity_startup, "\n")
+
+# Plot
+plot1 <- ggplot(db_gei_data, aes(x = Oppurtunity.startup, y = DB_score)) +
+  geom_point(color = 'blue') +
+  geom_smooth(method = 'lm', col = 'red') +
+  labs(title = 'DB Score vs Opportunity Startup', x = 'Opportunity Startup', y = 'DB Score')
+print(plot1)
+
+# 2. DB Score vs Competition
+cor_competition <- cor(db_gei_data$DB_score, db_gei_data$Competition, use = "complete.obs")
+cat("Correlation between DB score and Competition:", cor_competition, "\n")
+
+# Plot
+plot2 <- ggplot(db_gei_data, aes(x = Competition, y = DB_score)) +
+  geom_point(color = 'blue') +
+  geom_smooth(method = 'lm', col = 'red') +
+  labs(title = 'DB Score vs Competition', x = 'Competition', y = 'DB Score')
+print(plot2)
+
+# 3. DB Score vs Process Innovation
+cor_process_innovation <- cor(db_gei_data$DB_score, db_gei_data$Process.Innovation, use = "complete.obs")
+cat("Correlation between DB score and Process Innovation:", cor_process_innovation, "\n")
+
+# Plot
+plot3 <- ggplot(db_gei_data, aes(x = Process.Innovation, y = DB_score)) +
+  geom_point(color = 'blue') +
+  geom_smooth(method = 'lm', col = 'red') +
+  labs(title = 'DB Score vs Process Innovation', x = 'Process Innovation', y = 'DB Score')
+print(plot3)
+
+### --- PART 3: PRINCIPAL COMPONENT ANALYSIS (PCA) --- ###
+
+# Select indicators for PCA
+gei_indicators <- db_gei_data[, c("Competition", "Cultural.Support", "High.Growth", "Human.capital",
+                                  "Internationalization", "Networking", "Oppurtunity.startup", 
+                                  "Opputunity.perception", "Process.Innovation", "Product.Innovation", 
+                                  "Risk.Acceptance", "Risk.Capital", "Start.up.skills", 
+                                  "Technology.Absorption")]
+
+# 3.1: Perform PCA
+gei_pca <- prcomp(gei_indicators, scale = TRUE)
+
+# Summary of PCA and Scree Plot
+summary(gei_pca)
+fviz_eig(gei_pca, addlabels = TRUE, ylim = c(0, 70))
+
+### --- PART 4: PERMUTATION TEST --- ###
+
+# 3.2: Permutation test setup for PCA
+set.seed(123)
+num_permutations <- 1000
+stat_perm <- numeric(num_permutations)
+
+# Permutation process
+for (i in 1:num_permutations) {
+  permuted_data <- apply(gei_indicators, 2, sample)
+  permuted_pca <- prcomp(permuted_data, scale = TRUE)
+  stat_perm[i] <- (permuted_pca$sdev^2)[1] / sum(permuted_pca$sdev^2)
+}
+
+# Plot of permutation test results
+hist(stat_perm, col = "blue", main = "Variance of PC1 (Permutation Test)", border = "white", breaks = 20)
+
+# Observed variance for PC1
+observed_var <- (gei_pca$sdev^2)[1] / sum(gei_pca$sdev^2)
+abline(v = observed_var, col = "red")
+
+### --- PART 5: METHODS FOR SELECTING COMPONENTS --- ###
+
+# 3.3: Cumulative VAF, Scree Plot, and Kaiser’s Rule
+fviz_eig(gei_pca)  # Scree plot
+kaiser_rule <- sum(gei_pca$sdev^2 > 1)  # Kaiser rule (eigenvalue > 1 criterion)
+cat("Kaiser Rule: Keep", kaiser_rule, "components.\n")
+
+### --- PART 6: BIPLOT AND COMPONENT LOADINGS --- ###
+# You can add a biplot for PCA and component loadings here (as per 3.4)
+
+fviz_pca_biplot(gei_pca, label = "var", col.var = "black")
+
+### --- PART 7: BOOTSTRAP FOR VARIANCE EXPLAINED --- ###
+# 3.5: Bootstrap confidence intervals for variance explained by first component (PC1)
+
+boot_pca_variance <- function(data, indices) {
+  boot_data <- data[indices, ]
+  pca_boot <- prcomp(boot_data, scale = TRUE)
+  return((pca_boot$sdev[1]^2) / sum(pca_boot$sdev^2))}
+
+set.seed(123)
+boot_results <- boot(gei_indicators, statistic = boot_pca_variance, R = 1000)
+
+# Construct 95% confidence intervals for the total variance explained by PC1
+total_var_ci <- boot.ci(boot_results, type = "perc")
+
+# Display the bootstrap confidence interval
+cat("95% Confidence Interval for Total Variance Explained by PC1:\n")
+print(total_var_ci)
+
