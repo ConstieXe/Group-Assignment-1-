@@ -111,3 +111,9 @@ summary(pca_results)
 source("permtestPCA.R")
 permtestPCA(gei_indicators, nTests = 1000) 
 summary(pca_results)
+
+#3.3
+
+#Kaiser rule
+observed_eigenvalues <- pca_results$sdev^2 
+print(observed_eigenvalues)
