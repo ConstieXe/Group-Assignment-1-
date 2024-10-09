@@ -119,8 +119,8 @@ observed_eigenvalues <- pca_results$sdev^2
 print(observed_eigenvalues)
 
 #Scree plot & VAF
-summary(gei_pca)
 fviz_eig(gei_pca, addlabels = TRUE, ylim = c(0, 70))
+
 #3.4
 
 # Biplot for GEI Indicators
