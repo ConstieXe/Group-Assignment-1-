@@ -1,4 +1,4 @@
-install.packages(c("readr", "reshape2", "ggplot2", "dplyr", "factoextra", "ggbiplot"))
+lapply(c("readr", "reshape2", "ggplot2", "dplyr", "factoextra", "ggbiplot", "boot"), library, character.only = TRUE)
 
 setwd("C:/Users/jtgb0/OneDrive/Ambiente de Trabalho/Int to DS/Assignment/Assignment 2")
 gei <- read.csv2("Team_2_gei_data.csv")
