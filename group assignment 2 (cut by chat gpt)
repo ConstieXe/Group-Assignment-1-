@@ -135,24 +135,9 @@ var_pc1 <- function(data, indices) {
 set.seed(123)
 results_pc1 <- boot(gei_indicators, statistic = var_pc1, R = 1000)
 
-# Confidence intervals for PC1
 boot.ci(results_pc1, type = "perc")
 
-# Function to extract total variance explained by the first 'n' components
-var_total_npc <- function(data, indices, n_comp) {
-  resampled_data <- data[indices, ]
-  pca_resampled <- prcomp(resampled_data, scale. = TRUE)
-  var_explained <- sum((pca_resampled$sdev^2)[1:n_comp]) / sum(pca_resampled$sdev^2)
-  return(var_explained)  # Return total variance explained by the first 'n' components
-}
+pc1_loadings <- abs(pca_results$rotation[, 1])
 
-# Choose how many components you're analyzing (e.g., 3 components)
-n_comp <- 1
-
-# Bootstrap to calculate confidence intervals for the chosen number of components
-set.seed(123)
-results_npc <- boot(gei_indicators, statistic = function(data, i) var_total_npc(data, i, n_comp), R = 1000)
-
-# Confidence intervals for total variance explained by the first 'n_comp' components
-boot.ci(results_npc, type = "perc")
-
+top_contributors <- sort(pc1_loadings, decreasing = TRUE)[1:14]  
+top_contributors
