@@ -141,3 +141,16 @@ pc1_loadings <- abs(pca_results$rotation[, 1])
 
 top_contributors <- sort(pc1_loadings, decreasing = TRUE)[1:14]  
 top_contributors
+
+# 4.1
+
+set.seed(123)
+
+train_index <- sample(1:nrow(db_gei_data), 0.7 * nrow(db_gei_data))
+train_set <- db_gei_data[train_index, ]
+test_set <- db_gei_data[-train_index, ]
+
+# 4.2 
+
+benchmark_model <- lm(DB_score ~ ., data = train_set[, c(6,7,8,10:21)])  
+summary(benchmark_model)
