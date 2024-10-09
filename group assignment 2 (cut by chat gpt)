@@ -117,3 +117,11 @@ summary(pca_results)
 #Kaiser rule
 observed_eigenvalues <- pca_results$sdev^2 
 print(observed_eigenvalues)
+
+#3.4
+
+# Biplot for GEI Indicators
+fviz_pca_biplot(gei_pca, label = "var", col.var = "black") + ggtitle("PCA Biplot for GEI Indicators")
+# View the loadings for each variable on the principal components
+print(gei_pca$rotation)
+
