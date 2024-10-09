@@ -125,18 +125,13 @@ print(gei_pca$rotation)
 
 # 3.5
 
-# Load necessary package for bootstrapping
-library(boot)
-
-# Function to extract variance explained by PC1
 var_pc1 <- function(data, indices) {
   resampled_data <- data[indices, ]
   pca_resampled <- prcomp(resampled_data, scale. = TRUE)
   var_explained <- (pca_resampled$sdev^2) / sum(pca_resampled$sdev^2)
-  return(var_explained[1])  # Return variance explained by PC1
+  return(var_explained[1])  
 }
 
-# Bootstrap to calculate confidence intervals for PC1
 set.seed(123)
 results_pc1 <- boot(gei_indicators, statistic = var_pc1, R = 1000)
 
@@ -152,7 +147,7 @@ var_total_npc <- function(data, indices, n_comp) {
 }
 
 # Choose how many components you're analyzing (e.g., 3 components)
-n_comp <- 3
+n_comp <- 1
 
 # Bootstrap to calculate confidence intervals for the chosen number of components
 set.seed(123)
@@ -160,5 +155,4 @@ results_npc <- boot(gei_indicators, statistic = function(data, i) var_total_npc(
 
 # Confidence intervals for total variance explained by the first 'n_comp' components
 boot.ci(results_npc, type = "perc")
-
 
