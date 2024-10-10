@@ -1,4 +1,4 @@
-lapply(c("readr", "reshape2", "ggplot2", "dplyr", "factoextra", "ggbiplot", "boot"), library, character.only = TRUE)
+lapply(c("readr", "reshape2", "ggplot2", "dplyr", "factoextra", "ggbiplot", "boot", "pls"), library, character.only = TRUE)
 
 setwd("C:/Users/jtgb0/OneDrive/Ambiente de Trabalho/Int to DS/Assignment/Assignment 2")
 gei <- read.csv2("Team_2_gei_data.csv")
@@ -109,21 +109,32 @@ summary(pca_results)
 
 #3.3
 
-#Kaiser rule
+#Kaiser rule and Scree Plot 
 observed_eigenvalues <- pca_results$sdev^2 
 print(observed_eigenvalues)
 
+eigen_df <- data.frame(PC = 1:length(observed_eigenvalues), Eigenvalue = observed_eigenvalues)
+ggplot(eigen_df, aes(x = PC, y = observed_eigenvalues)) +
+  geom_point(color = "blue", size = 3) +
+  geom_line(color = "blue") +
+  geom_hline(yintercept = 1, color = "red", linetype = "dashed") +
+  xlab("Principal Component") + 
+  ylab("Eigenvalue") +
+  ggtitle("Scree Plot") +
+  theme_minimal(base_size = 15) +
+  theme(panel.background = element_rect(fill = "white"))
+
 #Scree plot & VAF
-fviz_eig(gei_pca, addlabels = TRUE, ylim = c(0, 70))
+fviz_eig(pca_results, addlabels = TRUE, ylim = c(0, 70))
 
 #3.4
 
-# Biplot for GEI Indicators
-fviz_pca_biplot(gei_pca, label = "var", col.var = "black") + ggtitle("PCA Biplot for GEI Indicators")
-# View the loadings for each variable on the principal components
-print(gei_pca$rotation)
+fviz_pca_biplot(pca_results, label = "var", col.var = "black") + ggtitle("PCA Biplot for GEI Indicators")
+print(pca_results$rotation)
+##############################################################################################3
+#3.5
 
-# 3.5
+##########CHATGPT
 
 var_pc1 <- function(data, indices) {
   resampled_data <- data[indices, ]
@@ -141,6 +152,107 @@ pc1_loadings <- abs(pca_results$rotation[, 1])
 
 top_contributors <- sort(pc1_loadings, decreasing = TRUE)[1:14]  
 top_contributors
+############################################
+
+##########CHATGPT
+
+# Function to calculate variance explained by PC1
+var_bootstrap <- function(data, indices) {
+  resampled_data <- data[indices, ]
+  pca_resampled <- prcomp(resampled_data, scale. = TRUE)
+  var_explained <- pca_resampled$sdev^2 / sum(pca_resampled$sdev^2)
+  return(var_explained[1])  # Return variance explained by PC1
+}
+
+# Bootstrap the variance explained by PC1
+set.seed(123)
+bootstrap_results <- boot(gei_indicators, statistic = var_bootstrap, R = 1000)
+
+# Get 95% Confidence Interval for total variance explained by PC1
+ci_pc1 <- boot.ci(bootstrap_results, type = "perc")
+print(ci_pc1)
+
+### Step 3: Identify GEI Variables Best Explained by PC1
+
+# Extract loadings for PC1
+loadings_pc1 <- pca_results$rotation[, 1]
+print("Loadings for PC1:")
+print(loadings_pc1)
+
+# Function to bootstrap loadings of variables on PC1
+loadings_bootstrap <- function(data, indices) {
+  resampled_data <- data[indices, ]
+  pca_resampled <- prcomp(resampled_data, scale. = TRUE)
+  return(pca_resampled$rotation[, 1])  # Loadings for PC1
+}
+
+# Bootstrap to calculate confidence intervals for each variable's loading on PC1
+set.seed(123)
+bootstrap_loadings <- boot(gei_indicators, statistic = loadings_bootstrap, R = 1000)
+
+# Calculate 95% confidence intervals for the loadings of each variable on PC1
+for (i in 1:ncol(gei_indicators)) {
+  ci_loading <- boot.ci(bootstrap_loadings, index = i, type = "perc")
+  print(paste("95% CI for", colnames(gei_indicators)[i], "loading on PC1:"))
+  print(ci_loading)
+}
+
+
+###########################################
+
+##########TEACHER
+
+my_boot_pca <- function(x, ind){
+  res <- princomp(x[ind, ], cor = TRUE)
+  return (res$sdev^2)
+}
+  # 2. Run bootstrap
+fit.boot <- boot(data = gei_indicators, statistic = my_boot_pca, R = 1000)
+  # 3. Store the bootstrapped statistic (here all eigenvalues)
+eigs.boot <- fit.boot$t
+  # Store the R x p matrix with eigenvalues
+head (eigs.boot)
+pca_results$sdev^2
+
+par(mfrow = c(1,1), mar = c(5, 4, 4, 1) + 0.1)
+
+# Histogram for the first eigenvalue from bootstrap results
+hist(eigs.boot[, 1], 
+     xlab = "Eigenvalue 1", 
+     las = 1, 
+     col = "blue", 
+     main = "Bootstrap Confidence Interval", 
+     breaks = 20, 
+     border = "white")
+
+perc.alpha <- quantile(eigs.boot[, 1], c(0.025, 0.975))
+print(perc.alpha)
+
+
+abline(v = perc.alpha, col = "green", lwd = 2)
+abline(v = pca_results$sdev[1]^2, col = "red", lwd = 2)
+
+
+### Variance Explained
+# Calculate variance explained by the first two components
+var.expl <- rowSums(eigs.boot[, 1:2]) / rowSums(eigs.boot)
+
+# Histogram for variance explained
+hist(var.expl, 
+     xlab = "Variance Explained", 
+     las = 1, 
+     col = "blue", 
+     main = "Bootstrap Confidence Interval", 
+     breaks = 20, 
+     border = "white")
+
+# Calculate confidence interval for variance explained
+perc.alpha_var <- quantile(var.expl, c(0.025, 0.975))
+print(perc.alpha_var)
+
+# Add vertical line for the variance explained confidence interval
+abline(v = perc.alpha_var, col = "green", lwd = 2)
+
 
 # 4.1
 
@@ -154,3 +266,4 @@ test_set <- db_gei_data[-train_index, ]
 
 benchmark_model <- lm(DB_score ~ ., data = train_set[, c(6,7,8,10:21)])  
 summary(benchmark_model)
+
