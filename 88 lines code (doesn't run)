@@ -1,0 +1,88 @@
+# Load libraries
+lapply(c("readr", "reshape2", "ggplot2", "dplyr", "factoextra", "ggbiplot", "boot", "pls"), 
+         library, character.only = TRUE)
+
+# Data wrangling for GEI
+variables <- c("DATE", "COUNTRY_NAME", "INDICATOR_NAME", "VALUE")
+gei_subset <- gei[, variables]
+gei_cleaned <- do.call(rbind, lapply(2017:2019, function(yr) {
+  data.frame(dcast(gei_subset[gei_subset$DATE == as.character(yr), ], 
+                   COUNTRY_NAME ~ INDICATOR_NAME), YEAR = as.character(yr))
+}))
+colnames(gei_cleaned)[1] <- "COUNTRY"
+colnames(gei_cleaned)[4] <- "GEI_score"
+gei_cleaned[, 2:16] <- lapply(gei_cleaned[, 2:16], function(x) as.numeric(as.character(x)))
+
+# Data wrangling for DB
+db_cleaned <- db[, -c(7, 8)]
+names(db_cleaned)[2:6] <- c("COUNTRY", "YEAR", "DB_score")
+
+# Merge datasets
+db_gei_data <- merge(db_cleaned, gei_cleaned, by = c('COUNTRY', 'YEAR'))
+
+# Scatter plots and correlations
+cor_plot <- function(x, y, xlabel, ylabel) {
+  plot(x, y, xlab = xlabel, ylab = ylabel, col = "blue", pch = 19)
+  abline(lm(y ~ x), col = "red")
+  return(cor(x, y))
+}
+
+correlation <- cor_plot(db_gei_data$DB_score, db_gei_data$GEI_score, "DB Scores", "GEI Scores")
+correlation_Oppurtunity.startup <- cor_plot(db_gei_data$DB_score, db_gei_data$Oppurtunity.startup, 
+                                            "DB Scores", "Opportunity Startup")
+correlation_competition <- cor_plot(db_gei_data$DB_score, db_gei_data$Competition, "DB Scores", "Competition")
+correlation_Process.Innovation <- cor_plot(db_gei_data$DB_score, db_gei_data$Process.Innovation, 
+                                           "DB Scores", "Process Innovation")
+
+# PCA Analysis
+gei_indicators <- db_gei_data[, c(7,8,10:21)]
+pca_results <- prcomp(gei_indicators, center = TRUE, scale = TRUE)
+
+# Eigenvalues and Scree Plot
+observed_eigenvalues <- pca_results$sdev^2
+eigen_df <- data.frame(PC = 1:length(observed_eigenvalues), Eigenvalue = observed_eigenvalues)
+ggplot(eigen_df, aes(x = PC, y = Eigenvalue)) + geom_point(color = "blue", size = 3) +
+  geom_line(color = "blue") + geom_hline(yintercept = 1, color = "red", linetype = "dashed") +
+  xlab("Principal Component") + ylab("Eigenvalue") + ggtitle("Scree Plot") + theme_minimal()
+
+# Biplot
+fviz_pca_biplot(pca_results, label = "var", col.var = "black") + ggtitle("PCA Biplot for GEI Indicators")
+
+# Bootstrap PCA
+my_boot_pca <- function(x, ind) prcomp(x[ind, ], center = TRUE, scale = TRUE)$sdev^2
+fit.boot <- boot(data = gei_indicators, statistic = my_boot_pca, R = 1000)
+ci_pc1 <- boot.ci(fit.boot, type = "perc", index = 1)
+perc.alpha <- quantile(fit.boot$t[, 1], c(0.025, 0.975))
+hist(fit.boot$t[, 1], xlab = "Eigenvalue 1", las = 1, col = "blue", 
+     main = "Bootstrap Confidence Interval", breaks = 20, border = "white")
+abline(v = perc.alpha, col = "green", lwd = 2)
+abline(v = observed_eigenvalues[1], col = "red", lwd = 2)
+
+# Train-Test Split for Regression
+set.seed(123)
+train_index <- sample(1:nrow(db_gei_data), 0.7 * nrow(db_gei_data))
+train_set <- db_gei_data[train_index, ]
+test_set <- db_gei_data[-train_index, ]
+
+# Benchmark model and PCR
+benchmark_model <- lm(DB_score ~ ., data = train_set[, c(6,7,8,10:21)])
+pcr_model <- pcr(DB_score ~ ., data = train_set[, c(6,7,8,10:21)], scale = TRUE, validation = "CV")
+
+# Predictions and MSE
+lm_predictions <- predict(benchmark_model, newdata = test_set[, c(6,7,8,10:21)])
+pcr_predictions_1comp <- predict(pcr_model, newdata = test_set[, c(6,7,8,10:21)], ncomp = 1)
+mse_lm <- mean((test_set$DB_score - lm_predictions)^2)
+mse_pcr_1comp <- mean((test_set$DB_score - pcr_predictions_1comp)^2)
+r_squared_lm <- 1 - sum((test_set$DB_score - lm_predictions)^2) / sum((test_set$DB_score - mean(test_set$DB_score))^2)
+r_squared_pcr_1comp <- 1 - sum((test_set$DB_score - pcr_predictions_1comp)^2) / sum((test_set$DB_score - mean(test_set$DB_score))^2)
+
+# Print Results
+print(paste("MSE of Linear Regression:", mse_lm))
+print(paste("MSE of PCR (with 1 component):", mse_pcr_1comp))
+print(paste("R-squared of Linear Regression:", r_squared_lm))
+print(paste("R-squared of PCR (with 1 component):", r_squared_pcr_1comp))
+
+# Predictions on new data
+predictions_data <- read.csv("~/Downloads/predictions.csv")
+pcr_model_pred <- predict(pcr_model, newdata = predictions_data, ncomp = 1)
+print(pcr_model_pred)
