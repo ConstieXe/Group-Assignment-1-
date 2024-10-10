@@ -273,10 +273,7 @@ library(pls)
 
 # Perform PCR on the training data (including scaling and cross-validation)
 pcr_model <- pcr(DB_score ~ ., data = train_set[, c(6,7,8,10:21)], 
-                 scale = TRUE, validation = "CV")
-
-# Plot validation results (mean squared error of prediction)
-validationplot(pcr_model, val.type = "MSEP") 
+                 scale = TRUE, validation = "CV") 
 
 # Print the summary of the PCR model
 summary(pcr_model)
