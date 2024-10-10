@@ -1,13 +1,14 @@
-lapply(c("reshape2", "ggplot2", "dplyr", "factoextra", "ggbiplot", "boot"), library, character.only = TRUE)
+lapply(c("readr", "reshape2", "ggplot2", "dplyr", "factoextra", "ggbiplot", "boot"), library, character.only = TRUE)
+####USE YOUR WORKING DIRECTORY!!!
+setwd("~/Downloads")
+gei <- read.csv2("Team_2_gei_data.csv")
+db <- read.csv2("Team_2_db_data.csv")
 
-###Cleaning the Data
-
+#Cleaning the data
 gei <- gei[,-1]
 db <- db[,-1]
-
 variables <- c("DATE", "COUNTRY_NAME", "INDICATOR_NAME",
                "VALUE")
-
 gei_subset <- gei[, variables]
 
 #Build a df for each year 
@@ -34,9 +35,9 @@ names(db_cleaned)[2] <- "COUNTRY"
 names(db_cleaned)[5] <- "YEAR"
 names(db_cleaned)[6] <- "DB_score"
 
-##################################################################################
 #1.1
 db_gei_data <- merge(db_cleaned, gei_cleaned, by = c('COUNTRY', 'YEAR'))
+
 #2.1
 plot(db_gei_data$DB_score, db_gei_data$GEI_score,
      main = "Scatter Plot of DB Scores vs GEI Scores",
@@ -45,8 +46,10 @@ plot(db_gei_data$DB_score, db_gei_data$GEI_score,
      col = "blue", 
      pch = 19)
 abline(lm(GEI_score ~ DB_score, data = db_gei_data), col = "red")
+
 correlation <- cor(db_gei_data$DB_score, db_gei_data$GEI_score) 
 print(correlation)
+
 #2.2
 plot(db_gei_data$DB_score, db_gei_data$Oppurtunity.startup,
      main = "Scatter Plot of DB Scores vs Oppurtunity Startup",
@@ -57,6 +60,7 @@ plot(db_gei_data$DB_score, db_gei_data$Oppurtunity.startup,
 abline(lm(Oppurtunity.startup ~ DB_score, data = db_gei_data), col = "red")
 correlation_Oppurtunity.startup <- cor(db_gei_data$DB_score, db_gei_data$Oppurtunity.startup) 
 print(correlation_Oppurtunity.startup)
+
 plot(db_gei_data$DB_score, db_gei_data$Competition,
      main = "Scatter Plot of DB Scores vs Competition",
      xlab = "DB Scores",
@@ -66,6 +70,7 @@ plot(db_gei_data$DB_score, db_gei_data$Competition,
 abline(lm(Competition ~ DB_score, data = db_gei_data), col = "red")
 correlation_competition <- cor(db_gei_data$DB_score, db_gei_data$Competition) 
 print(correlation_competition)
+
 plot(db_gei_data$DB_score, db_gei_data$Process.Innovation,
      main = "Scatter Plot of DB Scores vs Process Innovation",
      xlab = "DB Scores",
@@ -75,49 +80,87 @@ plot(db_gei_data$DB_score, db_gei_data$Process.Innovation,
 abline(lm(Process.Innovation ~ DB_score, data = db_gei_data), col = "red")
 correlation_Process.Innovation <- cor(db_gei_data$DB_score, db_gei_data$Process.Innovation) 
 print(correlation_Process.Innovation)
+
 #3.1
 gei_indicators <- db_gei_data[, c(7,8,10:21)]
 set.seed(123)
 pca_results <- prcomp(gei_indicators, center = TRUE, scale = TRUE) 
 summary(pca_results)
+
 #3.2
-source("/Users/constantinexe/Downloads/permtestPCA.R")
+source("permtestPCA.R")
 permtestPCA(gei_indicators, nTests = 1000) 
 summary(pca_results)
+
 #3.3
+#Kaiser rule and Scree Plot 
 observed_eigenvalues <- pca_results$sdev^2 
 print(observed_eigenvalues)
+
+eigen_df <- data.frame(PC = 1:length(observed_eigenvalues), Eigenvalue = observed_eigenvalues)
+ggplot(eigen_df, aes(x = PC, y = observed_eigenvalues)) +
+  geom_point(color = "blue", size = 3) +
+  geom_line(color = "blue") +
+  geom_hline(yintercept = 1, color = "red", linetype = "dashed") +
+  xlab("Principal Component") + 
+  ylab("Eigenvalue") +
+  ggtitle("Scree Plot") +
+  theme_minimal(base_size = 15) +
+  theme(panel.background = element_rect(fill = "white"))
+
+#Scree plot & VAF
 fviz_eig(pca_results, addlabels = TRUE, ylim = c(0, 70))
+
 #3.4
 fviz_pca_biplot(pca_results, label = "var", col.var = "black") + ggtitle("PCA Biplot for GEI Indicators")
 print(pca_results$rotation)
-# 4.1
+
+#3.5
+
+#4.1
 set.seed(123)
 train_index <- sample(1:nrow(db_gei_data), 0.7 * nrow(db_gei_data))
 train_set <- db_gei_data[train_index, ]
 test_set <- db_gei_data[-train_index, ]
-# 4.2 
-benchmark_model <- lm(DB_score ~ as.matrix(train_set[, c(7,8,10:21)]), data = train_set)  
+
+#4.2 
+benchmark_model <- lm(DB_score ~ ., data = train_set[, c(6,7,8,10:21)])  
 summary(benchmark_model)
+
 #4.3
 library(pls)
+# Perform PCR on the training data (including scaling and cross-validation)
 pcr_model <- pcr(DB_score ~ ., data = train_set[, c(6,7,8,10:21)], 
                  scale = TRUE, validation = "CV")
-validationplot(pcr_model, val.type = "MSEP") 
 summary(pcr_model)
+
 #4.4
+
 lm_predictions <- predict(benchmark_model, newdata = test_set[, c(6,7,8,10:21)])
 pcr_predictions_1comp <- predict(pcr_model, newdata = test_set[, c(6,7,8,10:21)], ncomp = 1)
+
+#Compute the mean squared error (MSE) for both models
 mse_lm <- mean((test_set$DB_score - lm_predictions)^2)
 mse_pcr_1comp <- mean((test_set$DB_score - pcr_predictions_1comp)^2)
+
 print(paste("MSE of Linear Regression:", mse_lm))
 print(paste("MSE of PCR (with 1 component):", mse_pcr_1comp))
+
+# Compute R-squared for both models
 r_squared_lm <- 1 - (sum((test_set$DB_score - lm_predictions)^2)) / (sum((test_set$DB_score - mean(test_set$DB_score))^2))
 r_squared_pcr_1comp <- 1 - (sum((test_set$DB_score - pcr_predictions_1comp)^2)) / (sum((test_set$DB_score - mean(test_set$DB_score))^2))
+
 print(paste("R-squared of Linear Regression:", r_squared_lm))
 print(paste("R-squared of PCR (with 1 component):", r_squared_pcr_1comp))
-# 4.5
-predictions <- read.csv("/Users/constantinexe/Library/Mobile Documents/com~apple~CloudDocs/Erasmus University Rotterdam/Introduction to Data Science/predictions.csv")
-str(predictions)
-pcr_model_pred <- predict(pcr_model, newdata = predictions, ncomp = 1)
+
+#4.5
+predictions_data <- read.csv("~/Downloads/predictions.csv")
+head(predictions_data)
+summary(predictions_data)
+pcr_model_pred <- predict(pcr_model, newdata = predictions_data, ncomp = 1)
+
 print(pcr_model_pred)
+
+
+
+
