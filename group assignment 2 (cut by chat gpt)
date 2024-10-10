@@ -267,3 +267,42 @@ test_set <- db_gei_data[-train_index, ]
 benchmark_model <- lm(DB_score ~ ., data = train_set[, c(6,7,8,10:21)])  
 summary(benchmark_model)
 
+#4.3
+
+library(pls)
+
+# Perform PCR on the training data (including scaling and cross-validation)
+pcr_model <- pcr(DB_score ~ ., data = train_set[, c(6,7,8,10:21)], 
+                 scale = TRUE, validation = "CV")
+
+# Plot validation results (mean squared error of prediction)
+validationplot(pcr_model, val.type = "MSEP") 
+
+# Print the summary of the PCR model
+summary(pcr_model)
+
+#4.4
+# Predict using the linear regression model
+lm_predictions <- predict(benchmark_model, newdata = test_set[, c(6,7,8,10:21)])
+
+# Predict using the PCR model (with 1 component)
+pcr_predictions_1comp <- predict(pcr_model, newdata = test_set[, c(6,7,8,10:21)], ncomp = 1)
+
+# Compute the mean squared error (MSE) for both models
+mse_lm <- mean((test_set$DB_score - lm_predictions)^2)
+mse_pcr_1comp <- mean((test_set$DB_score - pcr_predictions_1comp)^2)
+
+# Print MSE for both models
+print(paste("MSE of Linear Regression:", mse_lm))
+print(paste("MSE of PCR (with 1 component):", mse_pcr_1comp))
+
+# Compute R-squared for both models
+r_squared_lm <- 1 - (sum((test_set$DB_score - lm_predictions)^2)) / (sum((test_set$DB_score - mean(test_set$DB_score))^2))
+r_squared_pcr_1comp <- 1 - (sum((test_set$DB_score - pcr_predictions_1comp)^2)) / (sum((test_set$DB_score - mean(test_set$DB_score))^2))
+
+# Print R-squared for both models
+print(paste("R-squared of Linear Regression:", r_squared_lm))
+print(paste("R-squared of PCR (with 1 component):", r_squared_pcr_1comp))
+
+
+
