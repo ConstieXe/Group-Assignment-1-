@@ -116,6 +116,35 @@ fviz_pca_biplot(pca_results, label = "var", col.var = "black") + ggtitle("PCA Bi
 print(pca_results$rotation)
 
 #3.5
+my_boot_pca <- function(x, ind) {
+  res <- prcomp(x[ind, ], center = TRUE, scale = TRUE)
+  return(res$sdev^2) 
+}
+
+
+fit.boot <- boot(data = gei_indicators, statistic = my_boot_pca, R = 1000)
+
+eigs.boot <- fit.boot$t
+pc1_variance_boot <- eigs.boot[, 1]
+
+
+ci_pc1 <- boot.ci(fit.boot, type = "perc", index = 1)
+
+hist(eigs.boot[, 1], 
+     xlab = "Eigenvalue 1", 
+     las = 1, 
+     col = "blue", 
+     main = "Bootstrap Confidence Interval", 
+     breaks = 20, 
+     border = "white")
+
+perc.alpha <- quantile(eigs.boot[, 1], c(0.025, 0.975))
+print(perc.alpha)
+abline(v = perc.alpha, col = "green", lwd = 2)
+abline(v = pca_results$sdev[1]^2, col = "red", lwd = 2)
+
+loadings <- pca_results$rotation[, 1] 
+significant_variables <- names(loadings[abs(loadings) > 0.3]) #CHANGE THE TRESHOLD
 
 #4.1
 set.seed(123)
