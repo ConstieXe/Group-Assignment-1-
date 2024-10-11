@@ -1,5 +1,6 @@
 lapply(c("reshape2", "ggplot2", "dplyr", "factoextra", "ggbiplot", "boot", "pls"),
        library, character.only = TRUE)
+setwd("C:/Users/jtgb0/OneDrive/Ambiente de Trabalho/Int to DS/Assignment/Assignment 2")
 gei <- read.csv2("Team_2_gei_data.csv")
 db <- read.csv2("Team_2_db_data.csv")
 
@@ -36,7 +37,7 @@ cor_plot <- function(x, y, xlabel, ylabel) {
   return(cor(x, y))
 }
 
-correlation <- cor_plot(db_gei_data$DB_score,
+correlation_gei <- cor_plot(db_gei_data$DB_score,
                         db_gei_data$GEI_score, "DB Scores", "GEI Scores")
 correlation_op.stup <- cor_plot(db_gei_data$DB_score, db_gei_data$Oppurtunity.startup, 
                                             "DB Scores", "Opportunity Startup")
@@ -47,6 +48,9 @@ correlation_Process.In <- cor_plot(db_gei_data$DB_score, db_gei_data$Process.Inn
 
 gei_indicators <- db_gei_data[, c(7,8,10:21)]
 pca_results <- prcomp(gei_indicators, center = TRUE, scale = TRUE)
+summary(pca_results)
+source("permtestPCA.R")
+permtestPCA(gei_indicators, nTests = 1000) 
 
 observed_eigenvalues <- pca_results$sdev^2
 eigen_df <- data.frame(PC = 1:length(observed_eigenvalues),
@@ -55,17 +59,20 @@ ggplot(eigen_df, aes(x = PC, y = Eigenvalue)) + geom_point(color = "blue", size 
 geom_line(color = "blue") + geom_hline(yintercept = 1, color = "red", linetype = "dashed") +
 xlab("Principal Component") + ylab("Eigenvalue") + ggtitle("Scree Plot") + theme_minimal()
 
-fviz_pca_biplot(pca_results, label = "var", col.var = "black")
-+ ggtitle("PCA Biplot for GEI Indicators")
+fviz_pca_biplot(pca_results, label = "var", col.var = "black") + 
+  ggtitle("PCA Biplot for GEI Indicators")
 
-my_boot_pca <- function(x, ind) prcomp(x[ind, ], center = TRUE, scale = TRUE)$sdev^2
+my_boot_pca <- function(x, ind) 
+  prcomp(x[ind, ], center = TRUE, scale = TRUE)$sdev^2
 fit.boot <- boot(data = gei_indicators, statistic = my_boot_pca, R = 1000)
 ci_pc1 <- boot.ci(fit.boot, type = "perc", index = 1)
 perc.alpha <- quantile(fit.boot$t[, 1], c(0.025, 0.975))
+
 hist(fit.boot$t[, 1], xlab = "Eigenvalue 1", las = 1, col = "blue", 
-     main = "Bootstrap Confidence Interval", breaks = 20, border = "white")
-abline(v = perc.alpha, col = "green", lwd = 2)
+     main = "Bootstrap Confidence Interval", breaks = 20, border = "white")  
+abline(v = perc.alpha, col = "green", lwd = 2) 
 abline(v = observed_eigenvalues[1], col = "red", lwd = 2)
+
 loadings <- pca_results$rotation[, 1] 
 top_5_loadings <- sort(loadings, decreasing = TRUE)[1:5]
 print(top_5_loadings)
@@ -96,3 +103,4 @@ print(paste("R-squared of PCR (with 1 component):", r_squared_pcr_1comp))
 predictions_data <- read.csv("predictions.csv")
 pcr_model_pred <- predict(pcr_model, newdata = predictions_data, ncomp = 1)
 print(pcr_model_pred)
+
