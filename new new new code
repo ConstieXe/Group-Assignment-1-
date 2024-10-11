@@ -1,4 +1,4 @@
-lapply(c("reshape2", "ggplot2", "dplyr", "factoextra", "ggbiplot", "boot", "pls"),
+lapply(c("reshape2", "ggplot2", "dplyr", "factoextra", "ggbiplot", "boot", "pls","dplyr"),
        library, character.only = TRUE)
 setwd("C:/Users/jtgb0/OneDrive/Ambiente de Trabalho/Int to DS/Assignment/Assignment 2")
 gei <- read.csv2("Team_2_gei_data.csv")
@@ -100,7 +100,23 @@ print(paste("MSE of PCR (with 1 component):", mse_pcr_1comp))
 print(paste("R-squared of Linear Regression:", r_squared_lm))
 print(paste("R-squared of PCR (with 1 component):", r_squared_pcr_1comp))
 
-predictions_data <- read.csv("predictions.csv")
-pcr_model_pred <- predict(pcr_model, newdata = predictions_data, ncomp = 1)
-print(pcr_model_pred)
+predictions <- read.csv("predictions.csv")
+x_pred <- model.matrix(~ Competition + Cultural.Support + High.Growth + Human.capital + 
+                         Internationalization + Networking + Oppurtunity.startup + 
+                         Opputunity.perception + Process.Innovation + Product.Innovation + 
+                         Risk.Acceptance + Risk.Capital + Start.up.skills + Technology.Absorption,
+                       data = predictions)[,-1]
+
+countries <- c("United Kingdom", "United States", "Uruguay", "Vietnam", "Zambia")
+filtered_data <- db_gei_data %>%
+  filter(COUNTRY %in% countries)
+
+predictions$DB_score <- filtered_data$DB_score
+pred_actual <- predictions$DB_score
+mse_pred <- mean((pred_pred - pred_actual)^2)
+print(mse_pred)
+rmse_pred <- sqrt(mse_pred)
+print(rmse_pred)
+print(sd(filtered_data$DB_score))
+
 
