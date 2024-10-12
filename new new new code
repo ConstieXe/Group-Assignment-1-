@@ -17,7 +17,6 @@ gei_2018 <- data.frame(dcast(gei_subset[which(gei_subset$DATE =="2018"), ],
 gei_2019 <- data.frame(dcast(gei_subset[which(gei_subset$DATE =="2019"), ],
                              COUNTRY_NAME ~ INDICATOR_NAME), YEAR = "2019")
 gei_cleaned <- rbind(gei_2017, gei_2018, gei_2019)
-
 colnames(gei_cleaned)[1] <- "COUNTRY"
 colnames(gei_cleaned)[4] <- "GEI_score"
 
@@ -28,77 +27,130 @@ db_cleaned <- subset(db, select = -c(7, 8))
 names(db_cleaned)[2] <- "COUNTRY"
 names(db_cleaned)[5] <- "YEAR"
 names(db_cleaned)[6] <- "DB_score"
-
+#############################################################################
 db_gei_data <- merge(db_cleaned, gei_cleaned, by = c('COUNTRY', 'YEAR'))
 
+#2.1
 cor_plot <- function(x, y, xlabel, ylabel) {
   plot(x, y, xlab = xlabel, ylab = ylabel, col = "blue", pch = 19)
   abline(lm(y ~ x), col = "red")
   return(cor(x, y))
 }
-
-correlation_gei <- cor_plot(db_gei_data$DB_score,
+correlation <- cor_plot(db_gei_data$DB_score,
                         db_gei_data$GEI_score, "DB Scores", "GEI Scores")
+correlation_DB_GEI <- cor(db_gei_data$DB_score, db_gei_data$GEI_score,
+                          use = "complete.obs")
+correlation_DB_GEI
+#2.2
 correlation_op.stup <- cor_plot(db_gei_data$DB_score, db_gei_data$Oppurtunity.startup, 
-                                            "DB Scores", "Opportunity Startup")
+                                "DB Scores", "Opportunity Startup")
+correlation_op.stup 
+
 correlation_competition <- cor_plot(db_gei_data$DB_score,
                                     db_gei_data$Competition, "DB Scores", "Competition")
+correlation_competition
 correlation_Process.In <- cor_plot(db_gei_data$DB_score, db_gei_data$Process.Innovation, 
-                                           "DB Scores", "Process Innovation")
+                                   "DB Scores", "Process Innovation")
+correlation_Process.In
+################################################################################
+#3.1
 
-gei_indicators <- db_gei_data[, c(7,8,10:21)]
-pca_results <- prcomp(gei_indicators, center = TRUE, scale = TRUE)
+gei_indicators <- db_gei_data[, c(7,8,10:21)] 
+pca_results <- prcomp(gei_indicators, center = TRUE, scale. = TRUE) #we use cor matrix 
 summary(pca_results)
-source("permtestPCA.R")
-permtestPCA(gei_indicators, nTests = 1000) 
 
+#3.2
+
+source("permtestPCA.R")
+permtestPCA(gei_indicators, nTests = 1000)
+
+#3.3
+
+#Scree Plot
 observed_eigenvalues <- pca_results$sdev^2
 eigen_df <- data.frame(PC = 1:length(observed_eigenvalues),
                        Eigenvalue = observed_eigenvalues)
 ggplot(eigen_df, aes(x = PC, y = Eigenvalue)) + geom_point(color = "blue", size = 3) +
-geom_line(color = "blue") + geom_hline(yintercept = 1, color = "red", linetype = "dashed") +
-xlab("Principal Component") + ylab("Eigenvalue") + ggtitle("Scree Plot") + theme_minimal()
+  geom_line(color = "blue") + geom_hline(yintercept = 1, color = "red", linetype = "dashed") +
+  xlab("Principal Component") + ylab("Eigenvalue") + ggtitle("Scree Plot") + theme_minimal()
 
+
+#3.4
+
+#Biplot
 fviz_pca_biplot(pca_results, label = "var", col.var = "black") + 
   ggtitle("PCA Biplot for GEI Indicators")
+loadings <- pca_results$rotation
 
-my_boot_pca <- function(x, ind) 
-  prcomp(x[ind, ], center = TRUE, scale = TRUE)$sdev^2
-fit.boot <- boot(data = gei_indicators, statistic = my_boot_pca, R = 1000)
-ci_pc1 <- boot.ci(fit.boot, type = "perc", index = 1)
-perc.alpha <- quantile(fit.boot$t[, 1], c(0.025, 0.975))
+#3.5
+set.seed(123)
+my_boot_pca <- function(x, ind) {prcomp(x[ind, ], center = TRUE, scale. = TRUE)$sdev^2}
+fit_boot <- boot(data = gei_indicators, statistic = my_boot_pca, R = 1000)
+eigs_boot <- fit_boot$t
 
-hist(fit.boot$t[, 1], xlab = "Eigenvalue 1", las = 1, col = "blue", 
-     main = "Bootstrap Confidence Interval", breaks = 20, border = "white")  
-abline(v = perc.alpha, col = "green", lwd = 2) 
-abline(v = observed_eigenvalues[1], col = "red", lwd = 2)
+# Calculate the variance explained by PC1 for each bootstrap sample
+var_explpc1 <- rowSums(eigs_boot[, 1, drop = FALSE]) / rowSums(eigs_boot)
 
-loadings <- pca_results$rotation[, 1] 
-top_5_loadings <- sort(loadings, decreasing = TRUE)[1:5]
-print(top_5_loadings)
+hist(var_explpc1, xlab = "Variance Explained PC1", las = 1, col = "blue",
+     main = "Bootstrap Confidence Interval", breaks = 20, border = "white")
+perc.alpha <- quantile(var_explpc1, c(0.025, 0.975))
+abline(v = perc.alpha, col = "green", lwd = 2)
+observed_var_pc1 <- observed_eigenvalues[1] / sum(observed_eigenvalues)
+abline(v = observed_var_pc1, col = "red", lwd = 2)
+
+# Loadings for PC1 and their variance explained
+loadings_pc1 <- pca_results$rotation[, 1]
+loadings_pc1_df <- data.frame(Loading = loadings_pc1)
+loadings_pc1_df 
+
+# Function for bootstrapping the loadings
+my_boot_pca_loadings <- function(x, ind) {
+  prcomp(x[ind, ], center = TRUE, scale. = TRUE)$rotation[, 1]}
+fit.boot_loadings <- boot(data = gei_indicators, statistic = my_boot_pca_loadings, R = 1000)
+
+# Variance explained by PC1 loadings and confidence intervals
+var_explained_pc1 <- fit.boot_loadings$t^2
+ci_var_explained <- apply(var_explained_pc1, 2, quantile, c(0.025, 0.975))
+observed_variance_pc1 <- loadings_pc1^2
+
+ci_var_explained_df <- data.frame(
+  Lower_Bound_2.5 = ci_var_explained[1, ],
+  Upper_Bound_97.5 = ci_var_explained[2, ],
+  Observed_Variance = observed_variance_pc1)
+print(ci_var_explained_df)
+
+#4.1
 
 set.seed(123)
 train_index <- sample(1:nrow(db_gei_data), 0.7 * nrow(db_gei_data))
 train_set <- db_gei_data[train_index, ]
 test_set <- db_gei_data[-train_index, ]
 
-benchmark_model <- lm(DB_score ~ ., data = train_set[, c(6,7,8,10:21)])
-pcr_model <- pcr(DB_score ~ ., data = train_set[, c(6,7,8,10:21)], scale = TRUE,
-                 validation = "CV")
+#4.2
 
+benchmark_model <- lm(DB_score ~ ., data = train_set[, c(6,7,8,10:21)])
+#PCR model
+pcr_model_1comp <- pcr(DB_score ~ ., data = train_set[, c(6,7,8,10:21)], scale = TRUE,
+                       validation = "CV", ncomp = 1)
+
+#Predictions for Linear model
 lm_predictions <- predict(benchmark_model, newdata = test_set[, c(6,7,8,10:21)])
-pcr_predictions_1comp <- predict(pcr_model, newdata = test_set[, c(6,7,8,10:21)],
+#Predictions for PCR model
+pcr_predictions_1comp <- predict(pcr_model_1comp, newdata = test_set[, c(6,7,8,10:21)],
                                  ncomp = 1)
-mse_lm <- mean((test_set$DB_score - lm_predictions)^2)
-mse_pcr_1comp <- mean((test_set$DB_score - pcr_predictions_1comp)^2)
+#Relevant metric to compare results
+rmse_lm <- sqrt(mean((test_set$DB_score - lm_predictions)^2))
+rmse_pcr_1comp <- sqrt(mean((test_set$DB_score - pcr_predictions_1comp)^2))
 r_squared_lm <- 1 - sum((test_set$DB_score - lm_predictions)^2) / 
   sum((test_set$DB_score - mean(test_set$DB_score))^2)
 r_squared_pcr_1comp <- 1 - sum((test_set$DB_score - pcr_predictions_1comp)^2) / 
   sum((test_set$DB_score - mean(test_set$DB_score))^2)
-print(paste("MSE of Linear Regression:", mse_lm))
-print(paste("MSE of PCR (with 1 component):", mse_pcr_1comp))
-print(paste("R-squared of Linear Regression:", r_squared_lm))
-print(paste("R-squared of PCR (with 1 component):", r_squared_pcr_1comp))
+
+model_comparison <- data.frame(
+  Model = c("Linear Model", "PCR (1 Component)"),
+  RMSE = c(rmse_lm, rmse_pcr_1comp),
+  R_squared = c(r_squared_lm, r_squared_pcr_1comp))
+model_comparison
 
 predictions <- read.csv("predictions.csv")
 x_pred <- model.matrix(~ Competition + Cultural.Support + High.Growth + Human.capital + 
@@ -112,11 +164,9 @@ filtered_data <- db_gei_data %>%
   filter(COUNTRY %in% countries)
 
 predictions$DB_score <- filtered_data$DB_score
+pred_pred <- predict(pcr_model, newdata = x_pred, ncomp = 1)
 pred_actual <- predictions$DB_score
-mse_pred <- mean((pred_pred - pred_actual)^2)
-print(mse_pred)
-rmse_pred <- sqrt(mse_pred)
-print(rmse_pred)
-print(sd(filtered_data$DB_score))
+rmse_pred <- sqrt(mean((pred_pred - pred_actual)^2))
+rmse_pred
 
 
